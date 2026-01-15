@@ -180,51 +180,61 @@ class ISLCSLTRDataset(Dataset):
         
         Returns:
             [3, T, H, W] tensor
+            
+        Raises:
+            RuntimeError: If video cannot be loaded
         """
-        # video_path is already absolute from _infer_from_structure
-        # Just ensure it's a proper path object
         video_path = Path(video_path)
+        
+        if not video_path.exists():
+            raise RuntimeError(f"Video file not found: {video_path}")
         
         cap = cv2.VideoCapture(str(video_path))
         
         if not cap.isOpened():
-            logger.warning(f"Failed to open video: {video_path}")
-            # Return zeros if video fails to load
-            return torch.zeros(3, self.num_frames, self.frame_size, self.frame_size)
+            raise RuntimeError(f"Failed to open video: {video_path}")
         
-        # Get total frames
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
-        if total_frames == 0:
-            logger.warning(f"Empty video: {video_path}")
-            return torch.zeros(3, self.num_frames, self.frame_size, self.frame_size)
+        if total_frames < 5:
+            cap.release()
+            raise RuntimeError(f"Video too short ({total_frames} frames): {video_path}")
         
         # Sample frame indices uniformly
         indices = np.linspace(0, total_frames - 1, self.num_frames, dtype=int)
         
         frames = []
+        failed_frames = 0
         for idx in indices:
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ret, frame = cap.read()
             
             if not ret:
-                # Use last good frame or zeros
+                failed_frames += 1
+                # Use last good frame if we have one
                 if frames:
                     frames.append(frames[-1].copy())
                 else:
-                    frames.append(np.zeros((self.frame_size, self.frame_size, 3), dtype=np.uint8))
+                    failed_frames += 1
                 continue
             
-            # Resize and convert BGR to RGB
             frame = cv2.resize(frame, (self.frame_size, self.frame_size))
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(frame)
         
         cap.release()
         
+        # If more than half the frames failed, reject this video
+        if failed_frames > self.num_frames // 2:
+            raise RuntimeError(f"Too many failed frames ({failed_frames}/{self.num_frames}): {video_path}")
+        
+        # Pad if needed
+        while len(frames) < self.num_frames:
+            frames.append(frames[-1].copy())
+        
         # Stack and normalize: [T, H, W, 3] -> [3, T, H, W]
-        video = np.stack(frames, axis=0)  # [T, H, W, 3]
-        video = video.transpose(3, 0, 1, 2)  # [3, T, H, W]
+        video = np.stack(frames, axis=0)
+        video = video.transpose(3, 0, 1, 2)
         video = video.astype(np.float32) / 255.0
         
         # Normalize to ImageNet stats
@@ -254,28 +264,48 @@ class ISLCSLTRDataset(Dataset):
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
-        Get a sample.
+        Get a sample with retry logic for failed videos.
         
         Returns:
             dict with 'video', 'labels', 'attention_mask', 'text'
         """
-        sample = self.samples[idx]
+        max_retries = 5
         
-        # Load video
-        video = self._load_video(sample['video'])
-        
-        if self.transform:
-            video = self.transform(video)
-        
-        # Tokenize text
-        text_encoding = self._tokenize_text(sample['text'])
-        
-        return {
-            'video': video,
-            'labels': text_encoding['input_ids'],
-            'attention_mask': text_encoding['attention_mask'],
-            'text': sample['text']
-        }
+        for attempt in range(max_retries):
+            try:
+                sample_idx = (idx + attempt) % len(self.samples)
+                sample = self.samples[sample_idx]
+                
+                # Load video - will raise RuntimeError on failure
+                video = self._load_video(sample['video'])
+                
+                if self.transform:
+                    video = self.transform(video)
+                
+                # Tokenize text
+                text_encoding = self._tokenize_text(sample['text'])
+                
+                return {
+                    'video': video,
+                    'labels': text_encoding['input_ids'],
+                    'attention_mask': text_encoding['attention_mask'],
+                    'text': sample['text']
+                }
+            except RuntimeError as e:
+                logger.warning(f"Sample {sample_idx} failed (attempt {attempt+1}): {e}")
+                if attempt == max_retries - 1:
+                    # Last resort: return a valid sample we know works
+                    logger.error(f"All retries failed for idx {idx}, returning first sample")
+                    # This is not ideal, but prevents training crash
+                    sample = self.samples[0]
+                    video = self._load_video(sample['video'])
+                    text_encoding = self._tokenize_text(sample['text'])
+                    return {
+                        'video': video,
+                        'labels': text_encoding['input_ids'],
+                        'attention_mask': text_encoding['attention_mask'],
+                        'text': sample['text']
+                    }
 
 
 def create_dataloaders(config: dict, tokenizer: T5Tokenizer = None) -> Tuple[DataLoader, DataLoader, DataLoader]:

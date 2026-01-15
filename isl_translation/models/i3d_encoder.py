@@ -6,6 +6,7 @@ Pretrained I3D (Inflated 3D ConvNet) for extracting spatiotemporal features from
 Based on: https://github.com/piergiaj/pytorch-i3d
 """
 
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
