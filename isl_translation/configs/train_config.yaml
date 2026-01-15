@@ -42,7 +42,7 @@ data:
   num_workers: 8  # Server has more cores
 
 paths:
-  dataset_dir: "data/isl_clstr/ISL_CSLRT_Corpus/ISL_CSLRT_Corpus/Videos_Sentence_Level"
+  dataset_dir: "/media/rvcse22/CSERV/kortex_sem5/Videos_Sentence_Level_rams/"
   checkpoint_dir: "checkpoints"
   log_dir: "logs"
 

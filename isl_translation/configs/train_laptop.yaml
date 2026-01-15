@@ -1,39 +1,39 @@
-# ISL Translation - Laptop Training Config (Small)
-# For quick testing before full A100 training
+# ISL Translation - Laptop Training Config (8GB VRAM)
+# For parallel training with server
 
 model:
-  i3d_pretrained: null  # No pretrained weights for quick test
+  i3d_pretrained: null  # No pretrained weights (saves memory)
   freeze_i3d: true
-  lstm_hidden: 256  # Smaller
-  lstm_layers: 1    # Fewer layers
-  lstm_dropout: 0.3
+  lstm_hidden: 256
+  lstm_layers: 1
+  lstm_dropout: 0.4
   bidirectional: true
   t5_model: "t5-small"
-  max_target_length: 30  # Shorter
+  max_target_length: 40
 
 training:
-  batch_size: 2         # Tiny batch for laptop
-  accumulation_steps: 2  # Effective batch = 4
-  learning_rate: 5.0e-5  # Reduced LR for stability
-  weight_decay: 0.01
-  epochs: 2              # Just 2 epochs for testing
-  early_stopping_patience: 5
-  save_every_n_epochs: 1
+  batch_size: 2           # Small for 8GB
+  accumulation_steps: 4   # Effective batch = 8
+  learning_rate: 3.0e-5   # Lower for stability
+  weight_decay: 0.02
+  epochs: 50              # Full training
+  early_stopping_patience: 10
+  save_every_n_epochs: 5
 
 stability:
-  gradient_clip: 0.5     # More aggressive clipping
-  warmup_steps: 100      # More warmup
-  mixed_precision: false # Disable AMP to fix NaN
+  gradient_clip: 0.5
+  warmup_steps: 200
+  mixed_precision: false  # Disabled for stability
   nan_skip: true
-  nan_patience: 50       # More patience for skipping
+  nan_patience: 50
 
 data:
-  num_frames: 16    # Fewer frames
-  frame_size: 112   # Smaller resolution
+  num_frames: 16
+  frame_size: 112
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
-  num_workers: 0    # Windows compatibility
+  num_workers: 0  # Windows
 
 paths:
   dataset_dir: "data/isl_clstr/ISL_CSLRT_Corpus/ISL_CSLRT_Corpus/Videos_Sentence_Level"
