@@ -39,7 +39,7 @@ data:
   num_workers: 4
   
 paths:
-  dataset_dir: "data/isl_csltr"
+  dataset_dir: "data/isl_clstr/ISL_CSLRT_Corpus/ISL_CSLRT_Corpus/Videos_Sentence_Level"
   checkpoint_dir: "checkpoints"
   log_dir: "logs"
   

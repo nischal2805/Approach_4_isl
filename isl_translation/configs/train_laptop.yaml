@@ -1,0 +1,45 @@
+# ISL Translation - Laptop Training Config (Small)
+# For quick testing before full A100 training
+
+model:
+  i3d_pretrained: null  # No pretrained weights for quick test
+  freeze_i3d: true
+  lstm_hidden: 256  # Smaller
+  lstm_layers: 1    # Fewer layers
+  lstm_dropout: 0.3
+  bidirectional: true
+  t5_model: "t5-small"
+  max_target_length: 30  # Shorter
+
+training:
+  batch_size: 2         # Tiny batch for laptop
+  accumulation_steps: 2  # Effective batch = 4
+  learning_rate: 5.0e-5  # Reduced LR for stability
+  weight_decay: 0.01
+  epochs: 2              # Just 2 epochs for testing
+  early_stopping_patience: 5
+  save_every_n_epochs: 1
+
+stability:
+  gradient_clip: 0.5     # More aggressive clipping
+  warmup_steps: 100      # More warmup
+  mixed_precision: false # Disable AMP to fix NaN
+  nan_skip: true
+  nan_patience: 50       # More patience for skipping
+
+data:
+  num_frames: 16    # Fewer frames
+  frame_size: 112   # Smaller resolution
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 0    # Windows compatibility
+
+paths:
+  dataset_dir: "data/isl_clstr/ISL_CSLRT_Corpus/ISL_CSLRT_Corpus/Videos_Sentence_Level"
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+
+evaluation:
+  beam_size: 2
+  length_penalty: 0.6

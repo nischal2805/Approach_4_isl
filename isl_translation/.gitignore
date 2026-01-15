@@ -5,11 +5,11 @@ __pycache__/
 *.so
 
 # Data - large files
-data/isl_csltr/
+data/isl_clstr/
 *.mp4
 *.avi
 *.mov
-
+isl_clstr/
 # Checkpoints - large models
 checkpoints/*.pt
 !checkpoints/.gitkeep

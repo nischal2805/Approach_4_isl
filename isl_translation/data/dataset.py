@@ -103,26 +103,56 @@ class ISLCSLTRDataset(Dataset):
         return samples
     
     def _infer_from_structure(self) -> List[Dict]:
-        """Infer samples from directory structure."""
+        """Infer samples from directory structure.
+        
+        Handles ISL-CSLRT format where folder name is the sentence label:
+        dataset_dir/
+        ├── hi how are you/
+        │   ├── hi how are you (1).mp4
+        │   ├── hi how are you (2).mp4
+        │   └── ...
+        ├── what happened/
+        │   └── ...
+        """
         samples = []
-        videos_dir = self.dataset_dir / 'videos'
         
-        if not videos_dir.exists():
-            videos_dir = self.dataset_dir
+        # Check if dataset_dir contains subdirectories (ISL-CSLRT format)
+        subdirs = [d for d in self.dataset_dir.iterdir() if d.is_dir()]
         
-        for video_path in videos_dir.glob('*.mp4'):
-            # Try to find corresponding text file
-            text_path = video_path.with_suffix('.txt')
-            if text_path.exists():
-                with open(text_path, 'r', encoding='utf-8') as f:
-                    text = f.read().strip()
-            else:
-                text = video_path.stem.replace('_', ' ')  # Fallback to filename
-            
-            samples.append({
-                'video': str(video_path),
-                'text': text
-            })
+        if subdirs:
+            # ISL-CSLRT format: folder name is the label
+            for subdir in subdirs:
+                label = subdir.name  # Folder name is the sentence
+                
+                # Find all video files in this folder
+                for video_path in subdir.glob('*.mp4'):
+                    samples.append({
+                        'video': str(video_path),
+                        'text': label
+                    })
+                # Also check for .MP4 (case-insensitive)
+                for video_path in subdir.glob('*.MP4'):
+                    if str(video_path) not in [s['video'] for s in samples]:
+                        samples.append({
+                            'video': str(video_path),
+                            'text': label
+                        })
+                        
+            logger.info(f"Found {len(samples)} videos in {len(subdirs)} sentence folders")
+        else:
+            # Flat structure: videos directly in dataset_dir
+            for video_path in self.dataset_dir.glob('*.mp4'):
+                text_path = video_path.with_suffix('.txt')
+                if text_path.exists():
+                    with open(text_path, 'r', encoding='utf-8') as f:
+                        text = f.read().strip()
+                else:
+                    text = video_path.stem.replace('_', ' ')
+                
+                samples.append({
+                    'video': str(video_path),
+                    'text': text
+                })
         
         return samples
     
@@ -151,9 +181,9 @@ class ISLCSLTRDataset(Dataset):
         Returns:
             [3, T, H, W] tensor
         """
-        # Handle relative paths
-        if not os.path.isabs(video_path):
-            video_path = self.dataset_dir / video_path
+        # video_path is already absolute from _infer_from_structure
+        # Just ensure it's a proper path object
+        video_path = Path(video_path)
         
         cap = cv2.VideoCapture(str(video_path))
         
