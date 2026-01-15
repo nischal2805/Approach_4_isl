@@ -1,0 +1,44 @@
+name: isl_translator
+description: Indian Sign Language to English Translator
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  
+  # Camera and Video
+  camera: ^0.10.5+9
+  video_player: ^2.8.2
+  path_provider: ^2.1.2
+  
+  # HTTP
+  http: ^1.1.2
+  dio: ^5.4.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Utils
+  permission_handler: ^11.2.0
+  flutter_spinkit: ^5.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/

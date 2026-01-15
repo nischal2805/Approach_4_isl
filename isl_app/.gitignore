@@ -1,0 +1,31 @@
+# Dart/Flutter
+*.dart.js
+*.info.json
+*.js
+*.js_
+*.js.deps
+*.js.map
+
+# Build directories
+/build/
+/.dart_tool/
+/.packages
+/android/app/release/
+/android/.gradle/
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+.DS_Store
+*.swp
+*.log
+pubspec.lock
