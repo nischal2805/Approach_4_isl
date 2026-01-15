@@ -227,7 +227,6 @@ def load_pretrained_i3d(model: I3D, weights_path: str, device: str = 'cpu') -> I
         logger.warning(f"Pretrained weights not found at {weights_path}. Using random init.")
         return model
     
-    import os
     state_dict = torch.load(weights_path, map_location=device)
     
     # Handle different state dict formats
