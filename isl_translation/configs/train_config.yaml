@@ -1,0 +1,48 @@
+# ISL Translation Training Configuration
+model:
+  # Video Encoder
+  i3d_pretrained: "rgb_imagenet.pt"  # Pretrained I3D weights
+  freeze_i3d: true  # Freeze I3D during training
+  
+  # Temporal Encoder
+  lstm_hidden: 512
+  lstm_layers: 2
+  lstm_dropout: 0.3
+  bidirectional: true
+  
+  # Text Decoder
+  t5_model: "t5-small"  # Options: t5-small, t5-base
+  max_target_length: 50
+  
+training:
+  batch_size: 8
+  accumulation_steps: 4  # Effective batch = 32
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  epochs: 50
+  early_stopping_patience: 7
+  save_every_n_epochs: 2
+  
+stability:
+  gradient_clip: 1.0
+  warmup_steps: 500
+  mixed_precision: true
+  nan_skip: true
+  nan_patience: 10  # Stop if 10 consecutive NaN batches
+  
+data:
+  num_frames: 30
+  frame_size: 224
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  num_workers: 4
+  
+paths:
+  dataset_dir: "data/isl_csltr"
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  
+evaluation:
+  beam_size: 4
+  length_penalty: 0.6

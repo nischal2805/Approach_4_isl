@@ -1,0 +1,31 @@
+# ISL Translation System Dependencies
+
+# Core
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+
+# Transformers
+transformers>=4.30.0
+
+# Video processing
+opencv-python>=4.8.0
+
+# NLP evaluation
+sacrebleu>=2.3.0
+nltk>=3.8.0
+
+# Config
+pyyaml>=6.0
+
+# Progress bars
+tqdm>=4.65.0
+
+# Data
+pandas>=2.0.0
+
+# Logging and monitoring
+tensorboard>=2.13.0
+
+# Optional: for faster dataloading
+# pillow-simd>=9.0.0
