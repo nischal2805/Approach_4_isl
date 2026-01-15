@@ -1,0 +1,9 @@
+48. Hello
+49. How are you
+50. Alright
+51. Good Morning
+52. Good afternoon
+53. Good evening
+54. Good night
+55. Thank you
+56. Pleased
