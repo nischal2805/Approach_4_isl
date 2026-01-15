@@ -1,48 +1,51 @@
-# ISL Translation Training Configuration
+# ISL Translation - Enhanced Training Config for Small Dataset
+# With extra safety against model collapse
+
 model:
-  # Video Encoder
-  i3d_pretrained: "rgb_imagenet.pt"  # Pretrained I3D weights
-  freeze_i3d: true  # Freeze I3D during training
+  i3d_pretrained: "models/rgb_imagenet.pt"
+  freeze_i3d: true
   
-  # Temporal Encoder
+  # Increased regularization for small dataset
   lstm_hidden: 512
   lstm_layers: 2
-  lstm_dropout: 0.3
+  lstm_dropout: 0.5  # Increased from 0.3
   bidirectional: true
   
-  # Text Decoder
-  t5_model: "t5-small"  # Options: t5-small, t5-base
+  t5_model: "t5-small"
   max_target_length: 50
-  
+
 training:
   batch_size: 8
-  accumulation_steps: 4  # Effective batch = 32
-  learning_rate: 1.0e-4
-  weight_decay: 0.01
-  epochs: 50
-  early_stopping_patience: 7
-  save_every_n_epochs: 2
+  accumulation_steps: 4
+  learning_rate: 5.0e-5  # Lower for stability
+  weight_decay: 0.05      # Stronger L2 regularization
+  epochs: 100             # More epochs since dataset is small
+  early_stopping_patience: 15  # More patience
+  save_every_n_epochs: 5
   
+  # NEW: Label smoothing to prevent overconfidence
+  label_smoothing: 0.1
+
 stability:
   gradient_clip: 1.0
-  warmup_steps: 500
+  warmup_steps: 1000     # Longer warmup
   mixed_precision: true
   nan_skip: true
-  nan_patience: 10  # Stop if 10 consecutive NaN batches
-  
+  nan_patience: 20
+
 data:
   num_frames: 30
   frame_size: 224
   train_split: 0.7
   val_split: 0.15
   test_split: 0.15
-  num_workers: 4
-  
+  num_workers: 8  # Server has more cores
+
 paths:
   dataset_dir: "data/isl_clstr/ISL_CSLRT_Corpus/ISL_CSLRT_Corpus/Videos_Sentence_Level"
   checkpoint_dir: "checkpoints"
   log_dir: "logs"
-  
+
 evaluation:
   beam_size: 4
   length_penalty: 0.6

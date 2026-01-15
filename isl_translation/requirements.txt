@@ -28,4 +28,4 @@ pandas>=2.0.0
 tensorboard>=2.13.0
 
 # Optional: for faster dataloading
-# pillow-simd>=9.0.0
+pillow-simd>=9.0.0

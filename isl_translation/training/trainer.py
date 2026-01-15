@@ -29,6 +29,7 @@ from training.utils import (
     NaNDetector, GradientClipper, CheckpointManager, MetricsLogger,
     EarlyStopping, get_cosine_schedule_with_warmup, seed_everything, count_parameters
 )
+from training.notifications import TrainingNotifier
 
 logging.basicConfig(
     level=logging.INFO,
@@ -119,6 +120,10 @@ class Trainer:
             patience=config['training']['early_stopping_patience'],
             mode='min'
         )
+        
+        # Notifications (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars)
+        self.notifier = TrainingNotifier(notify_every_n_epochs=5)
+        self.training_start_time = None
         
         # Training state
         self.current_epoch = 0
@@ -251,6 +256,7 @@ class Trainer:
         logger.info(f"Config: {self.config['training']}")
         
         num_epochs = self.config['training']['epochs']
+        self.training_start_time = datetime.now()
         
         for epoch in range(num_epochs):
             self.current_epoch = epoch + 1
@@ -271,6 +277,18 @@ class Trainer:
                 f"Val BLEU: {val_metrics['bleu']:.2f}"
             )
             
+            # Send notification (every 5 epochs or epoch 1)
+            time_elapsed = str(datetime.now() - self.training_start_time).split('.')[0]
+            self.notifier.notify_epoch(
+                epoch=self.current_epoch,
+                total_epochs=num_epochs,
+                train_loss=train_metrics['loss'],
+                val_loss=val_metrics['loss'],
+                val_bleu=val_metrics['bleu'],
+                learning_rate=self.scheduler.get_last_lr()[0],
+                time_elapsed=time_elapsed
+            )
+            
             # Check for best model
             is_best = val_metrics['loss'] < self.best_val_loss
             if is_best:
@@ -286,11 +304,16 @@ class Trainer:
             # Early stopping
             if self.early_stopping.check(val_metrics['loss']):
                 logger.info("Early stopping triggered")
+                self.notifier.notify_error("Early stopping triggered", self.current_epoch)
                 break
         
         # Save final metrics
         self.metrics_logger.save()
-        logger.info("Training complete!")
+        total_time = str(datetime.now() - self.training_start_time).split('.')[0]
+        logger.info(f"Training complete! Total time: {total_time}")
+        
+        # Send completion notification
+        self.notifier.notify_complete({'loss': self.best_val_loss}, total_time)
         
         return self.best_val_loss
     
