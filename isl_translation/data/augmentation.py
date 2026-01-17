@@ -179,10 +179,11 @@ class VideoAugmentation:
             
             if new_t != T and new_t > 1:
                 # Resample to new_t frames, then back to T
-                video = video.permute(0, 2, 3, 1)  # [C, H, W, T]
+                # Reshape to [C*H*W, 1, T] for 1D temporal interpolation
+                video = video.reshape(C * H * W, 1, T)
                 video = F.interpolate(video, size=new_t, mode='linear', align_corners=False)
                 video = F.interpolate(video, size=T, mode='linear', align_corners=False)
-                video = video.permute(0, 3, 1, 2)  # [C, T, H, W]
+                video = video.reshape(C, H, W, T).permute(0, 3, 1, 2)  # [C, T, H, W]
         
         return video
 
