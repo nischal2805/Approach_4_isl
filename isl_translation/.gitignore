@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-
+.zip
 # Data - large files
 data/isl_clstr/
 *.mp4

@@ -51,3 +51,7 @@ paths:
 stability:
   gradient_checkpointing: true
   detect_anomaly: false
+  warmup_steps: 200
+  mixed_precision: true
+  nan_patience: 5
+  gradient_clip: 1.0
