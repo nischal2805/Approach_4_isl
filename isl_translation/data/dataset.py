@@ -312,13 +312,24 @@ def create_dataloaders(config: dict, tokenizer: T5Tokenizer = None) -> Tuple[Dat
     """Create train, val, test dataloaders from config."""
     dataset_dir = config['paths']['dataset_dir']
     
+    # Import augmentation for training
+    train_transform = None
+    if config.get('augmentation', {}).get('enabled', True):
+        try:
+            from .augmentation import get_train_augmentation
+            train_transform = get_train_augmentation(config.get('augmentation', {}))
+            logger.info("Training augmentation enabled")
+        except ImportError:
+            logger.warning("Augmentation module not found, training without augmentation")
+    
     train_dataset = ISLCSLTRDataset(
         dataset_dir=dataset_dir,
         split='train',
         num_frames=config['data']['num_frames'],
         frame_size=config['data']['frame_size'],
         tokenizer=tokenizer,
-        max_target_length=config['model'].get('max_target_length', 50)
+        max_target_length=config['model'].get('max_target_length', 50),
+        transform=train_transform
     )
     
     val_dataset = ISLCSLTRDataset(

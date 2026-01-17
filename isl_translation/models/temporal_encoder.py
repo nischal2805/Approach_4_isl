@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """
 ISL Translation - Temporal Encoder
 

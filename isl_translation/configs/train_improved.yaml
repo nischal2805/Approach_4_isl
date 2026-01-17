@@ -1,0 +1,53 @@
+# ISL Translation - Improved Training Configuration
+# Optimized for better accuracy with data augmentation
+
+model:
+  t5_model: "t5-small"
+  i3d_pretrained: "models/rgb_imagenet.pt"  # Use pretrained I3D weights!
+  lstm_hidden: 384  # Reduced for faster training
+  lstm_layers: 2
+  lstm_dropout: 0.4
+  max_target_length: 50
+  freeze_t5_layers: 0
+
+training:
+  batch_size: 4
+  accumulation_steps: 2  # Effective batch = 8
+  epochs: 150  # More epochs with augmentation
+  learning_rate: 2.0e-5
+  weight_decay: 0.05
+  warmup_steps: 200
+  label_smoothing: 0.15  # Higher for small dataset
+  early_stopping_patience: 20
+  save_every_n_epochs: 10
+  mixed_precision: true
+  max_grad_norm: 0.5
+
+# Data augmentation settings
+augmentation:
+  enabled: true
+  spatial_prob: 0.5
+  temporal_prob: 0.3
+  color_prob: 0.4
+  horizontal_flip: true
+  rotation_degrees: 8.0
+  
+# Class weighting to prevent mode collapse
+class_weighting:
+  enabled: true
+  strategy: "inverse_frequency"  # Weight rare sentences higher
+
+data:
+  num_frames: 32  # More frames for better temporal info
+  frame_size: 224  # Match I3D training size
+  num_workers: 4
+
+paths:
+  dataset_dir: "/media/rvcse22/CSERV/kortex_sem5/Videos_Sentence_Level_rams/"
+  checkpoint_dir: "checkpoints_v2"
+  log_dir: "logs_v2"
+
+# Stability
+stability:
+  gradient_checkpointing: true
+  detect_anomaly: false
