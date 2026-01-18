@@ -38,14 +38,17 @@ class LandmarkService {
       // ML Kit gives 33 pose points, hands are padded with zeros
       List<double> landmarks = List.filled(225, 0.0);
 
-      // Map 33 Pose landmarks
+      // Map 33 Pose landmarks (normalize to [0, 1])
+      final imageWidth = image.width.toDouble();
+      final imageHeight = image.height.toDouble();
+      
       pose.landmarks.forEach((type, landmark) {
         int index = type.index; 
         if (index < 33) {
           int offset = index * 3;
           // Normalize to [0, 1] based on image dimensions
-          landmarks[offset] = landmark.x;
-          landmarks[offset + 1] = landmark.y;
+          landmarks[offset] = landmark.x / imageWidth;
+          landmarks[offset + 1] = landmark.y / imageHeight;
           landmarks[offset + 2] = landmark.z ?? 0.0;
         }
       });
