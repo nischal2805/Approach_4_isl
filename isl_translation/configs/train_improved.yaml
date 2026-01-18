@@ -22,6 +22,9 @@ training:
   save_every_n_epochs: 10
   mixed_precision: true
   max_grad_norm: 0.5
+  # Anti-mode-collapse settings
+  focal_gamma: 2.0      # Focal loss gamma (0 = standard CE)
+  rdrop_alpha: 0.3      # R-Drop regularization weight
 
 # Data augmentation settings
 augmentation:

@@ -296,6 +296,58 @@ def get_val_augmentation() -> None:
     return None
 
 
+class TemporalJitter:
+    """
+    Randomly varies start/end frames to simulate different recording timings.
+    Helps model become robust to varying sign start positions.
+    """
+    
+    def __init__(self, jitter_ratio: float = 0.15):
+        """
+        Args:
+            jitter_ratio: Maximum ratio of frames to jitter (0.15 = 15%)
+        """
+        self.jitter_ratio = jitter_ratio
+    
+    def __call__(self, video: torch.Tensor) -> torch.Tensor:
+        """
+        Apply temporal jitter.
+        
+        Args:
+            video: [C, T, H, W] tensor
+            
+        Returns:
+            Jittered video tensor
+        """
+        C, T, H, W = video.shape
+        max_jitter = int(T * self.jitter_ratio)
+        
+        if max_jitter < 1:
+            return video
+        
+        # Random start offset
+        start_jitter = random.randint(0, max_jitter)
+        # Random end offset (shrink from end)
+        end_jitter = random.randint(0, max_jitter)
+        
+        end_idx = T - end_jitter
+        if end_idx <= start_jitter:
+            return video  # Invalid jitter, skip
+        
+        # Extract jittered segment
+        jittered = video[:, start_jitter:end_idx, :, :]
+        
+        # Resize back to original length
+        new_t = jittered.shape[1]
+        if new_t < T:
+            # Reshape for interpolation [C*H*W, 1, T]
+            jittered = jittered.reshape(C * H * W, 1, new_t)
+            jittered = F.interpolate(jittered, size=T, mode='linear', align_corners=False)
+            jittered = jittered.reshape(C, H, W, T).permute(0, 3, 1, 2)  # [C, T, H, W]
+        
+        return jittered
+
+
 # Test the augmentation
 if __name__ == "__main__":
     print("Testing video augmentation...")

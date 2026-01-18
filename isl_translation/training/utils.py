@@ -257,3 +257,112 @@ def seed_everything(seed: int = 42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+class FocalLoss(nn.Module):
+    """
+    Focal Loss for seq2seq - down-weights easy/common examples.
+    Helps prevent mode collapse to frequent predictions.
+    
+    FL(p_t) = -alpha * (1 - p_t)^gamma * log(p_t)
+    """
+    
+    def __init__(self, gamma: float = 2.0, alpha: float = 1.0, 
+                 ignore_index: int = -100, label_smoothing: float = 0.0):
+        super().__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        self.ignore_index = ignore_index
+        self.label_smoothing = label_smoothing
+    
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            logits: [B, T, vocab_size]
+            targets: [B, T]
+        Returns:
+            Focal loss scalar
+        """
+        vocab_size = logits.size(-1)
+        
+        # Flatten
+        logits_flat = logits.view(-1, vocab_size)  # [B*T, V]
+        targets_flat = targets.view(-1)  # [B*T]
+        
+        # Create mask
+        mask = targets_flat != self.ignore_index
+        
+        # Get probabilities
+        log_probs = torch.log_softmax(logits_flat, dim=-1)
+        probs = torch.softmax(logits_flat, dim=-1)
+        
+        # Label smoothing
+        if self.label_smoothing > 0:
+            smooth_targets = torch.zeros_like(probs)
+            smooth_targets.fill_(self.label_smoothing / (vocab_size - 1))
+            smooth_targets.scatter_(1, targets_flat.unsqueeze(1).clamp(0), 1 - self.label_smoothing)
+            
+            # Cross entropy with smoothing
+            ce_loss = -(smooth_targets * log_probs).sum(dim=-1)
+            pt = (smooth_targets * probs).sum(dim=-1)
+        else:
+            # Standard cross entropy
+            ce_loss = torch.nn.functional.cross_entropy(
+                logits_flat, targets_flat.clamp(0), reduction='none'
+            )
+            pt = probs.gather(1, targets_flat.unsqueeze(1).clamp(0)).squeeze(1)
+        
+        # Focal weight
+        focal_weight = self.alpha * (1 - pt) ** self.gamma
+        
+        # Apply focal weight
+        focal_loss = focal_weight * ce_loss
+        
+        # Mask and average
+        focal_loss = focal_loss * mask.float()
+        return focal_loss.sum() / mask.float().sum().clamp(min=1)
+
+
+class RDropLoss(nn.Module):
+    """
+    R-Drop: Regularized Dropout for Neural Networks.
+    
+    Adds KL divergence between two forward passes with different dropout.
+    Reduces overfitting and mode collapse.
+    
+    Paper: https://arxiv.org/abs/2106.14448
+    """
+    
+    def __init__(self, alpha: float = 0.5):
+        """
+        Args:
+            alpha: Weight of the KL divergence term
+        """
+        super().__init__()
+        self.alpha = alpha
+        self.kl_div = nn.KLDivLoss(reduction='batchmean')
+    
+    def forward(self, logits1: torch.Tensor, logits2: torch.Tensor, 
+                base_loss: torch.Tensor) -> torch.Tensor:
+        """
+        Compute R-Drop loss.
+        
+        Args:
+            logits1: First forward pass logits [B, T, V]
+            logits2: Second forward pass logits [B, T, V]
+            base_loss: Average of the two CE losses
+            
+        Returns:
+            Total loss with R-Drop regularization
+        """
+        # Flatten for KL computation
+        p = torch.log_softmax(logits1.view(-1, logits1.size(-1)), dim=-1)
+        q = torch.softmax(logits2.view(-1, logits2.size(-1)), dim=-1)
+        
+        p_rev = torch.log_softmax(logits2.view(-1, logits2.size(-1)), dim=-1)
+        q_rev = torch.softmax(logits1.view(-1, logits1.size(-1)), dim=-1)
+        
+        # Symmetric KL divergence
+        kl_loss = (self.kl_div(p, q) + self.kl_div(p_rev, q_rev)) / 2
+        
+        return base_loss + self.alpha * kl_loss
