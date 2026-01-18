@@ -282,11 +282,10 @@ class Trainer:
                 total_loss += outputs['loss'].item()
                 num_batches += 1
             
-            # Generate predictions for BLEU
-            if num_batches <= 10:  # Only generate for first 10 batches (expensive)
-                predictions = self.model.translate(video, num_beams=2, max_length=50)
-                all_predictions.extend(predictions)
-                all_references.extend(batch['text'])
+            # Generate predictions for ALL samples (greedy decode for speed)
+            predictions = self.model.translate(video, num_beams=1, max_length=50)
+            all_predictions.extend(predictions)
+            all_references.extend(batch['text'])
         
         avg_loss = total_loss / max(num_batches, 1)
         

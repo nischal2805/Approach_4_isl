@@ -279,8 +279,12 @@ class ISLCSLTRDataset(Dataset):
                 # Load video - will raise RuntimeError on failure
                 video = self._load_video(sample['video'])
                 
-                if self.transform:
-                    video = self.transform(video)
+                # Apply augmentation with probability (for training diversity)
+                # This ensures different augmentations each epoch
+                import random
+                if self.transform and self.split == 'train':
+                    if random.random() < 0.8:  # 80% of samples get augmented
+                        video = self.transform(video)
                 
                 # Tokenize text
                 text_encoding = self._tokenize_text(sample['text'])

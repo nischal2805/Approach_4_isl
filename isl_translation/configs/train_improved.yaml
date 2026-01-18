@@ -13,12 +13,12 @@ model:
 training:
   batch_size: 4
   accumulation_steps: 2  # Effective batch = 8
-  epochs: 150  # More epochs with augmentation
-  learning_rate: 2.0e-5
+  epochs: 50  # Reduced - 150 overfits on small dataset
+  learning_rate: 5.0e-5  # Increased for small dataset
   weight_decay: 0.05
   warmup_steps: 200
   label_smoothing: 0.15  # Higher for small dataset
-  early_stopping_patience: 20
+  early_stopping_patience: 10  # Stop if no improvement for 10 epochs
   save_every_n_epochs: 10
   mixed_precision: true
   max_grad_norm: 0.5
