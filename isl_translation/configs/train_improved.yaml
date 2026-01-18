@@ -47,7 +47,7 @@ data:
 
 paths:
   dataset_dir: "/media/rvcse22/CSERV/kortex_sem5/Videos_Sentence_Level_rams/"
-  checkpoint_dir: "checkpoints_v2"
+  checkpoint_dir: "checkpoints_v3"
   log_dir: "logs_v2"
 
 # Stability
