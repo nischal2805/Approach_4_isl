@@ -312,6 +312,9 @@ class FocalLoss(nn.Module):
             )
             pt = probs.gather(1, targets_flat.unsqueeze(1).clamp(0)).squeeze(1)
         
+        # Clamp pt to avoid numerical instability (NaN when pt near 0 or 1)
+        pt = torch.clamp(pt, min=1e-7, max=1.0 - 1e-7)
+        
         # Focal weight
         focal_weight = self.alpha * (1 - pt) ** self.gamma
         
