@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/home_screen.dart';
+import 'screens/text_to_sign_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +17,7 @@ class ISLTranslatorApp extends StatelessWidget {
       title: 'ISL Translator',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
-      home: const HomeScreen(),
+      home: const MainNavigationScreen(),
     );
   }
 
@@ -125,6 +126,49 @@ class ISLTranslatorApp extends StatelessWidget {
       
       // Scaffold background
       scaffoldBackgroundColor: Colors.white,
+    );
+  }
+}
+
+/// Main navigation with bottom bar for dual-mode translation
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({super.key});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = [
+    const HomeScreen(),        // Sign → Text (camera)
+    const TextToSignScreen(),  // Text → Sign (avatar)
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.videocam_outlined),
+            selectedIcon: Icon(Icons.videocam),
+            label: 'Sign → Text',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.text_fields_outlined),
+            selectedIcon: Icon(Icons.text_fields),
+            label: 'Text → Sign',
+          ),
+        ],
+      ),
     );
   }
 }

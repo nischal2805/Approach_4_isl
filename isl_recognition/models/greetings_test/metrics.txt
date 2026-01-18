@@ -1,0 +1,6 @@
+ISL Recognition - 2026-01-18 17:19:32
+Classes: 10
+Train Accuracy: 1.0000
+Val Accuracy: 0.8056
+Test Accuracy: 0.8649
+Test F1: 0.8622
