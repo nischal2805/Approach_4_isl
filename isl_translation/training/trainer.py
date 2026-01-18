@@ -27,7 +27,8 @@ from models import ISLTranslator, create_model
 from data.dataset import ISLCSLTRDataset, create_dataloaders
 from training.utils import (
     NaNDetector, GradientClipper, CheckpointManager, MetricsLogger,
-    EarlyStopping, get_cosine_schedule_with_warmup, seed_everything, count_parameters
+    EarlyStopping, get_cosine_schedule_with_warmup, seed_everything, count_parameters,
+    FocalLoss, RDropLoss
 )
 from training.notifications import TrainingNotifier
 
@@ -130,6 +131,23 @@ class Trainer:
         self.global_step = 0
         self.best_val_loss = float('inf')
         self.accumulation_steps = config['training']['accumulation_steps']
+        
+        # Anti-mode-collapse: Focal Loss and R-Drop
+        focal_gamma = config['training'].get('focal_gamma', 0.0)
+        self.use_focal = focal_gamma > 0
+        if self.use_focal:
+            self.focal_loss = FocalLoss(
+                gamma=focal_gamma,
+                label_smoothing=config['training'].get('label_smoothing', 0.0),
+                ignore_index=-100
+            )
+            logger.info(f"Using Focal Loss with gamma={focal_gamma}")
+        
+        self.rdrop_alpha = config['training'].get('rdrop_alpha', 0.0)
+        self.use_rdrop = self.rdrop_alpha > 0
+        if self.use_rdrop:
+            self.rdrop_loss = RDropLoss(alpha=self.rdrop_alpha)
+            logger.info(f"Using R-Drop with alpha={self.rdrop_alpha}")
     
     def train_epoch(self) -> Dict[str, float]:
         """Train for one epoch."""
@@ -151,10 +169,45 @@ class Trainer:
             if self.use_amp:
                 with autocast():
                     outputs = self.model(video, labels=labels, attention_mask=attention_mask)
-                    loss = outputs['loss'] / self.accumulation_steps
+                    
+                    # Compute loss based on settings
+                    if self.use_focal:
+                        # Use focal loss instead of default CE
+                        loss = self.focal_loss(outputs['logits'], labels)
+                    else:
+                        loss = outputs['loss']
+                    
+                    # R-Drop: Second forward pass for consistency
+                    if self.use_rdrop:
+                        outputs2 = self.model(video, labels=labels, attention_mask=attention_mask)
+                        if self.use_focal:
+                            loss2 = self.focal_loss(outputs2['logits'], labels)
+                        else:
+                            loss2 = outputs2['loss']
+                        base_loss = (loss + loss2) / 2
+                        loss = self.rdrop_loss(outputs['logits'], outputs2['logits'], base_loss)
+                    
+                    loss = loss / self.accumulation_steps
             else:
                 outputs = self.model(video, labels=labels, attention_mask=attention_mask)
-                loss = outputs['loss'] / self.accumulation_steps
+                
+                # Compute loss based on settings
+                if self.use_focal:
+                    loss = self.focal_loss(outputs['logits'], labels)
+                else:
+                    loss = outputs['loss']
+                
+                # R-Drop: Second forward pass for consistency
+                if self.use_rdrop:
+                    outputs2 = self.model(video, labels=labels, attention_mask=attention_mask)
+                    if self.use_focal:
+                        loss2 = self.focal_loss(outputs2['logits'], labels)
+                    else:
+                        loss2 = outputs2['loss']
+                    base_loss = (loss + loss2) / 2
+                    loss = self.rdrop_loss(outputs['logits'], outputs2['logits'], base_loss)
+                
+                loss = loss / self.accumulation_steps
             
             # Check for NaN
             is_valid, safe_loss = self.nan_detector.check(loss)
