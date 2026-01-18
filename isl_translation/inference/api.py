@@ -173,7 +173,6 @@ async def health_check():
         device=device
     )
 
-
 @app.post("/translate", response_model=TranslationResponse)
 async def translate_video(video: UploadFile = File(...)):
     """
@@ -181,21 +180,50 @@ async def translate_video(video: UploadFile = File(...)):
     
     Upload a video file (mp4, mov, avi) containing sign language.
     Returns the English translation.
+    
+    Limits:
+        - Max file size: 50MB
+        - Max duration: 30 seconds
+        - Formats: mp4, mov, avi, webm
     """
     import time
+    
+    # Security limits
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+    MAX_VIDEO_DURATION = 30  # seconds
     
     if translator is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     # Validate file type
     if not video.filename.lower().endswith(('.mp4', '.mov', '.avi', '.webm')):
-        raise HTTPException(status_code=400, detail="Invalid video format")
+        raise HTTPException(status_code=400, detail="Invalid video format. Supported: mp4, mov, avi, webm")
     
     start_time = time.time()
+    temp_path = None
     
     try:
         # Read video bytes
         video_bytes = await video.read()
+        
+        # Check file size
+        if len(video_bytes) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"File too large. Max size: {MAX_FILE_SIZE // (1024*1024)}MB")
+        
+        # Check video duration
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as f:
+            f.write(video_bytes)
+            temp_path = f.name
+        
+        cap = cv2.VideoCapture(temp_path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        duration = frame_count / fps if fps > 0 else 0
+        cap.release()
+        
+        if duration > MAX_VIDEO_DURATION:
+            raise HTTPException(status_code=400, detail=f"Video too long. Max duration: {MAX_VIDEO_DURATION}s")
         
         # Preprocess
         video_tensor = preprocess_video(video_bytes)
@@ -217,9 +245,18 @@ async def translate_video(video: UploadFile = File(...)):
             processing_time_ms=processing_time
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Translation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Cleanup temp file
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
 
 
 @app.post("/translate_base64", response_model=TranslationResponse)

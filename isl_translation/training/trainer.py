@@ -28,7 +28,7 @@ from data.dataset import ISLCSLTRDataset, create_dataloaders
 from training.utils import (
     NaNDetector, GradientClipper, CheckpointManager, MetricsLogger,
     EarlyStopping, get_cosine_schedule_with_warmup, seed_everything, count_parameters,
-    FocalLoss, RDropLoss
+    FocalLoss, RDropLoss, compute_rouge, compute_wer, compute_exact_match
 )
 from training.notifications import TrainingNotifier
 
@@ -290,17 +290,28 @@ class Trainer:
         
         avg_loss = total_loss / max(num_batches, 1)
         
-        # Compute BLEU
+        # Compute metrics
         bleu = 0.0
+        wer = 100.0
+        exact_match = 0.0
+        rouge_scores = {}
+        
         if all_predictions:
             try:
                 bleu = compute_bleu(all_predictions, all_references)
+                wer = compute_wer(all_predictions, all_references)
+                exact_match = compute_exact_match(all_predictions, all_references)
+                rouge_scores = compute_rouge(all_predictions, all_references)
             except Exception as e:
-                logger.warning(f"BLEU computation failed: {e}")
+                logger.warning(f"Metrics computation failed: {e}")
         
         return {
             'loss': avg_loss,
-            'bleu': bleu
+            'bleu': bleu,
+            'wer': wer,
+            'exact_match': exact_match,
+            'rouge1': rouge_scores.get('rouge1', 0),
+            'rougeL': rouge_scores.get('rougeL', 0)
         }
     
     def train(self):

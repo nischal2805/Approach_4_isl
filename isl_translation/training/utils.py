@@ -366,3 +366,111 @@ class RDropLoss(nn.Module):
         kl_loss = (self.kl_div(p, q) + self.kl_div(p_rev, q_rev)) / 2
         
         return base_loss + self.alpha * kl_loss
+
+
+def compute_class_weights(dataset, num_classes: int = None) -> torch.Tensor:
+    """
+    Compute inverse frequency class weights for imbalanced datasets.
+    
+    Args:
+        dataset: Dataset with samples containing 'text' field
+        num_classes: Number of unique classes (auto-detected if None)
+        
+    Returns:
+        torch.Tensor of class weights
+    """
+    from collections import Counter
+    
+    # Count sentence frequencies
+    texts = [s['text'] for s in dataset.samples]
+    counts = Counter(texts)
+    
+    # Get unique classes
+    unique_texts = list(counts.keys())
+    if num_classes is None:
+        num_classes = len(unique_texts)
+    
+    # Compute inverse frequency weights
+    total = len(texts)
+    weights = []
+    for text in unique_texts:
+        freq = counts[text] / total
+        weight = 1.0 / (freq * num_classes)  # Inverse frequency
+        weights.append(weight)
+    
+    # Normalize so mean weight = 1
+    weights = torch.tensor(weights)
+    weights = weights / weights.mean()
+    
+    logger.info(f"Class weights computed: min={weights.min():.2f}, max={weights.max():.2f}")
+    return weights
+
+
+def compute_rouge(predictions: list, references: list) -> Dict[str, float]:
+    """
+    Compute ROUGE scores for translation evaluation.
+    
+    Returns:
+        Dict with rouge1, rouge2, rougeL scores
+    """
+    try:
+        from rouge_score import rouge_scorer
+        scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+        
+        scores = {'rouge1': 0, 'rouge2': 0, 'rougeL': 0}
+        for pred, ref in zip(predictions, references):
+            result = scorer.score(ref, pred)
+            scores['rouge1'] += result['rouge1'].fmeasure
+            scores['rouge2'] += result['rouge2'].fmeasure
+            scores['rougeL'] += result['rougeL'].fmeasure
+        
+        n = len(predictions)
+        return {k: v / n * 100 for k, v in scores.items()}
+    except ImportError:
+        logger.warning("rouge_score not installed. Run: pip install rouge-score")
+        return {'rouge1': 0, 'rouge2': 0, 'rougeL': 0}
+
+
+def compute_wer(predictions: list, references: list) -> float:
+    """
+    Compute Word Error Rate (WER).
+    
+    WER = (Substitutions + Deletions + Insertions) / Reference Words
+    Lower is better, 0 = perfect.
+    """
+    total_wer = 0
+    total_words = 0
+    
+    for pred, ref in zip(predictions, references):
+        pred_words = pred.lower().split()
+        ref_words = ref.lower().split()
+        
+        # Simple Levenshtein distance at word level
+        m, n = len(ref_words), len(pred_words)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        
+        for i in range(m + 1):
+            dp[i][0] = i
+        for j in range(n + 1):
+            dp[0][j] = j
+        
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if ref_words[i-1] == pred_words[j-1]:
+                    dp[i][j] = dp[i-1][j-1]
+                else:
+                    dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+        
+        total_wer += dp[m][n]
+        total_words += len(ref_words)
+    
+    return (total_wer / max(total_words, 1)) * 100
+
+
+def compute_exact_match(predictions: list, references: list) -> float:
+    """Compute exact match accuracy (case-insensitive)."""
+    correct = sum(
+        1 for p, r in zip(predictions, references) 
+        if p.lower().strip() == r.lower().strip()
+    )
+    return correct / len(predictions) * 100 if predictions else 0
