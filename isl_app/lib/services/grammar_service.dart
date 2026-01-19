@@ -1,277 +1,249 @@
-import 'dart:io';
-import 'dart:async';
-import 'package:flutter/services.dart';
-import 'package:llama_cpp_dart/llama_cpp_dart.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
-/// Service to handle grammar correction using on-device LLM (SmolLM2)
-/// with comprehensive rule-based fallback.
+/// Service to handle grammar correction for ISL
+/// Uses rule-based approach for reliable offline operation
 class GrammarService {
-  LlamaProcessor? _llamaProcessor;
-  bool _isModelLoaded = false;
-  
   // Conversation history for context
   final List<String> _conversationHistory = [];
-  static const int MAX_HISTORY = 5;
-  
-  // LLM settings
-  static const Duration LLM_TIMEOUT = Duration(seconds: 5);
-  static const int MAX_TOKENS = 50;
-  
-  /// Initialize the service - LLM is default, rule-based is fallback
-  Future<void> initialize({bool useLLM = true}) async {
-    if (useLLM) {
-      try {
-        final modelPath = await _copyModelToLocal();
-        if (modelPath != null && await File(modelPath).exists()) {
-          _llamaProcessor = LlamaProcessor(modelPath);
-          _isModelLoaded = true;
-          print("GrammarService: LLM loaded successfully");
-        } else {
-          print("GrammarService: Model file not found, using rules");
-        }
-      } catch (e) {
-        print("GrammarService: LLM init failed ($e), using rules");
-      }
-    }
+  static const int maxHistory = 5;
+
+  /// Initialize the service - uses rule-based grammar correction
+  Future<void> initialize({bool useLLM = false}) async {
+    // Using robust rule-based approach for offline reliability
+    debugPrint("GrammarService: Initialized with rule-based correction");
   }
 
-  /// Main correction method - tries LLM first, falls back to rules
+  /// Main correction method - uses rule-based approach
   Future<String> correctGrammar(String brokenSentence) async {
     if (brokenSentence.trim().isEmpty) return "";
-    
-    String corrected;
-    
-    if (_isModelLoaded) {
-      // Try LLM with timeout
-      try {
-        corrected = await _correctWithLLM(brokenSentence)
-            .timeout(LLM_TIMEOUT, onTimeout: () {
-          print("GrammarService: LLM timeout, using rules");
-          return _correctWithRules(brokenSentence);
-        });
-      } catch (e) {
-        print("GrammarService: LLM error ($e), using rules");
-        corrected = _correctWithRules(brokenSentence);
-      }
-    } else {
-      corrected = _correctWithRules(brokenSentence);
-    }
-    
+
+    // Always use rule-based correction for reliability
+    String corrected = _correctWithRules(brokenSentence);
+
     // Add to history for context
     _conversationHistory.add(corrected);
-    if (_conversationHistory.length > MAX_HISTORY) {
+    if (_conversationHistory.length > maxHistory) {
       _conversationHistory.removeAt(0);
     }
-    
+
     return corrected;
-  }
-
-  Future<String> _correctWithLLM(String input) async {
-    // Build context from history
-    String context = "";
-    if (_conversationHistory.isNotEmpty) {
-      context = "Context: ${_conversationHistory.takeLast(3).join(' ')}\n";
-    }
-    
-    final prompt = """<|im_start|>system
-You convert Sign Language gloss to grammatical English. Output only the corrected sentence, nothing else.
-<|im_end|>
-<|im_start|>user
-${context}Gloss: $input
-English:<|im_end|>
-<|im_start|>assistant
-""";
-
-    StringBuffer response = StringBuffer();
-    int tokenCount = 0;
-    
-    await for (final token in _llamaProcessor!.stream(prompt)) {
-      response.write(token);
-      tokenCount++;
-      if (tokenCount >= MAX_TOKENS) break;
-      if (token.contains('<|im_end|>')) break;
-    }
-    
-    String result = response.toString()
-        .replaceAll('<|im_end|>', '')
-        .replaceAll('<|im_start|>', '')
-        .trim();
-    
-    // If LLM returns empty or garbage, use rules
-    if (result.isEmpty || result.length < 2) {
-      return _correctWithRules(input);
-    }
-    
-    return result;
   }
 
   /// Comprehensive ISL-to-English rule-based correction
   String _correctWithRules(String input) {
     if (input.trim().isEmpty) return "";
-    
+
     String text = input.trim();
-    List<String> words = text.split(RegExp(r'\s+'));
-    
-    // === STEP 1: Word-level replacements (ISL glosses) ===
-    final Map<String, String> glossMap = {
-      // Pronouns
-      'ME': 'I', 'MY': 'my', 'MINE': 'mine',
-      'YOU': 'you', 'YOUR': 'your',
-      'HE': 'he', 'SHE': 'she', 'IT': 'it',
-      'WE': 'we', 'THEY': 'they',
-      
-      // Common verbs (ISL often uses base form)
-      'GO': 'go', 'GOING': 'going', 'WENT': 'went',
-      'COME': 'come', 'COMING': 'coming',
-      'EAT': 'eat', 'EATING': 'eating',
-      'DRINK': 'drink', 'DRINKING': 'drinking',
-      'WANT': 'want', 'NEED': 'need',
-      'LIKE': 'like', 'LOVE': 'love',
-      'HELP': 'help', 'WORK': 'work',
-      'LEARN': 'learn', 'STUDY': 'study',
-      'UNDERSTAND': 'understand',
-      
-      // Question words
-      'WHAT': 'what', 'WHERE': 'where', 'WHEN': 'when',
-      'WHY': 'why', 'HOW': 'how', 'WHO': 'who',
-      
-      // Time markers
-      'NOW': 'now', 'TODAY': 'today', 'TOMORROW': 'tomorrow',
-      'YESTERDAY': 'yesterday', 'LATER': 'later',
-      'BEFORE': 'before', 'AFTER': 'after',
-      
-      // Common nouns
-      'SCHOOL': 'school', 'HOME': 'home', 'WORK': 'work',
-      'FOOD': 'food', 'WATER': 'water', 'MONEY': 'money',
-      'FRIEND': 'friend', 'FAMILY': 'family',
-      'MOTHER': 'mother', 'FATHER': 'father',
-      'BROTHER': 'brother', 'SISTER': 'sister',
-      
-      // Greetings
-      'HELLO': 'Hello', 'HI': 'Hi', 'BYE': 'Goodbye',
-      'THANK': 'Thank you', 'SORRY': 'Sorry',
-      'PLEASE': 'please', 'YES': 'yes', 'NO': 'no',
-      'GOOD': 'good', 'BAD': 'bad',
-      'MORNING': 'morning', 'AFTERNOON': 'afternoon',
-      'EVENING': 'evening', 'NIGHT': 'night',
-    };
-    
-    // Apply word replacements
-    words = words.map((w) {
-      String upper = w.toUpperCase();
-      return glossMap[upper] ?? w.toLowerCase();
-    }).toList();
-    
-    // === STEP 2: Pattern-based corrections ===
-    String sentence = words.join(' ');
-    
-    // Common ISL patterns -> English
-    final patterns = [
-      // "ME GO SCHOOL" -> "I am going to school"
-      (RegExp(r'\bi go (\w+)'), 'I am going to \$1'),
-      (RegExp(r'\bi going (\w+)'), 'I am going to \$1'),
-      
-      // "YOU HOW" -> "How are you?"
-      (RegExp(r'you how\b'), 'How are you?'),
-      (RegExp(r'how you\b'), 'How are you?'),
-      
-      // "WHAT NAME YOU" -> "What is your name?"
-      (RegExp(r'what name you'), 'What is your name?'),
-      (RegExp(r'name you what'), 'What is your name?'),
-      
-      // "WHERE YOU GO" -> "Where are you going?"
-      (RegExp(r'where you go'), 'Where are you going?'),
-      (RegExp(r'you go where'), 'Where are you going?'),
-      
-      // "I WANT FOOD" -> "I want food"
-      (RegExp(r'\bi want (\w+)'), 'I want \$1'),
-      
-      // "HE/SHE GO" -> "He/She is going"
-      (RegExp(r'\b(he|she) go\b'), '\$1 is going'),
-      
-      // "GOOD MORNING" -> "Good morning"
-      (RegExp(r'good morning'), 'Good morning'),
-      (RegExp(r'good afternoon'), 'Good afternoon'),
-      (RegExp(r'good evening'), 'Good evening'),
-      (RegExp(r'good night'), 'Good night'),
-      
-      // Add articles where missing
-      (RegExp(r'\bgo to (\w+)\b(?!\s+(?:a|an|the))'), 'go to the \$1'),
-    ];
-    
-    for (var pattern in patterns) {
-      sentence = sentence.replaceAllMapped(pattern.$1, (m) {
-        String replacement = pattern.$2;
-        for (int i = 0; i <= m.groupCount; i++) {
-          replacement = replacement.replaceAll('\$$i', m.group(i) ?? '');
-        }
-        return replacement;
-      });
-    }
-    
-    // === STEP 3: Final cleanup ===
-    // Capitalize first letter
-    if (sentence.isNotEmpty) {
-      sentence = sentence[0].toUpperCase() + sentence.substring(1);
-    }
-    
-    // Add punctuation if missing
-    if (!sentence.endsWith('.') && !sentence.endsWith('?') && !sentence.endsWith('!')) {
-      // Add ? for questions
-      if (sentence.toLowerCase().startsWith('what') ||
-          sentence.toLowerCase().startsWith('where') ||
-          sentence.toLowerCase().startsWith('when') ||
-          sentence.toLowerCase().startsWith('why') ||
-          sentence.toLowerCase().startsWith('how') ||
-          sentence.toLowerCase().startsWith('who')) {
-        sentence += '?';
-      } else {
-        sentence += '.';
-      }
-    }
-    
-    // Fix double spaces
-    sentence = sentence.replaceAll(RegExp(r'\s+'), ' ').trim();
-    
+
+    // Split into words
+    List<String> words =
+        text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return "";
+
+    // 1. Subject pronoun fixes
+    words = _fixPronouns(words);
+
+    // 2. Handle common ISL patterns
+    String sentence = _handlePatterns(words);
+
+    // 3. Apply grammar fixes
+    sentence = _applyGrammarFixes(sentence);
+
+    // 4. Capitalize and punctuate
+    sentence = _formatSentence(sentence);
+
     return sentence;
   }
-  
-  Future<String?> _copyModelToLocal() async {
-    try {
-      // Use app documents directory for persistence
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/smollm2.gguf');
-      
-      // Check if already copied
-      if (await file.exists()) {
-        return file.path;
-      }
-      
-      // Copy from assets
-      final data = await rootBundle.load('assets/smollm2-135m-q4_k_m.gguf');
-      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
-      return file.path;
-    } catch (e) {
-      print("Failed to copy model: $e");
-      return null;
-    }
+
+  List<String> _fixPronouns(List<String> words) {
+    final pronounMap = {
+      'ME': 'I',
+      'MY': 'my',
+      'YOU': 'you',
+      'YOUR': 'your',
+      'HE': 'he',
+      'SHE': 'she',
+      'WE': 'we',
+      'THEY': 'they',
+      'SELF': 'myself',
+    };
+
+    return words.map((w) => pronounMap[w.toUpperCase()] ?? w).toList();
   }
-  
+
+  String _handlePatterns(List<String> words) {
+    String joinedLower = words.join(" ").toLowerCase();
+
+    // Pattern: PERSON + ACTION → "The person is doing action"
+    // Pattern: PLACE + GO → "Going to place"
+    // Pattern: OBJECT + WANT → "I want object"
+
+    // Check for common greetings (preserve as-is)
+    if (_isGreeting(joinedLower)) {
+      return _formatGreeting(words);
+    }
+
+    // Check for questions
+    if (_isQuestion(words)) {
+      return _formQuestion(words);
+    }
+
+    // Default: reconstruct with basic grammar
+    return words.join(" ").toLowerCase();
+  }
+
+  bool _isGreeting(String text) {
+    final greetings = [
+      'hello',
+      'hi',
+      'good morning',
+      'good afternoon',
+      'good evening',
+      'good night',
+      'thank you',
+      'thanks',
+      'welcome',
+      'bye',
+      'goodbye'
+    ];
+    return greetings.any((g) => text.contains(g));
+  }
+
+  String _formatGreeting(List<String> words) {
+    String joined = words.join(" ").toLowerCase();
+    // Capitalize first letter of each major word
+    return words.map((w) {
+      String lower = w.toLowerCase();
+      if ([
+        'good',
+        'thank',
+        'hello',
+        'hi',
+        'bye',
+        'you',
+        'morning',
+        'afternoon',
+        'evening',
+        'night',
+        'welcome'
+      ].contains(lower)) {
+        return w[0].toUpperCase() + w.substring(1).toLowerCase();
+      }
+      return lower;
+    }).join(" ");
+  }
+
+  bool _isQuestion(List<String> words) {
+    final questionWords = [
+      'what',
+      'where',
+      'when',
+      'who',
+      'why',
+      'how',
+      'which'
+    ];
+    return words.any((w) => questionWords.contains(w.toLowerCase()));
+  }
+
+  String _formQuestion(List<String> words) {
+    // Move question word to front
+    final questionWords = [
+      'what',
+      'where',
+      'when',
+      'who',
+      'why',
+      'how',
+      'which'
+    ];
+    String? qWord;
+    List<String> others = [];
+
+    for (var w in words) {
+      if (questionWords.contains(w.toLowerCase()) && qWord == null) {
+        qWord = w.toLowerCase();
+      } else {
+        others.add(w.toLowerCase());
+      }
+    }
+
+    if (qWord != null) {
+      String qWordCapitalized = qWord[0].toUpperCase() + qWord.substring(1);
+      if (others.isEmpty) {
+        return "$qWordCapitalized?";
+      }
+      return "$qWordCapitalized ${others.join(" ")}?";
+    }
+
+    return words.join(" ").toLowerCase();
+  }
+
+  String _applyGrammarFixes(String sentence) {
+    // Add "I am" before single verbs
+    if (RegExp(r'^(go|want|need|like|love|have|see|know)\b',
+            caseSensitive: false)
+        .hasMatch(sentence)) {
+      sentence = "I $sentence";
+    }
+
+    // Fix common verb patterns
+    sentence = sentence.replaceAllMapped(
+      RegExp(r'\bI go\b', caseSensitive: false),
+      (m) => "I am going",
+    );
+    sentence = sentence.replaceAllMapped(
+      RegExp(r'\bI want\b', caseSensitive: false),
+      (m) => "I want",
+    );
+
+    // Add articles before common nouns
+    final nounsNeedingArticle = [
+      'school',
+      'hospital',
+      'doctor',
+      'teacher',
+      'bus',
+      'train',
+      'car',
+      'house',
+      'shop'
+    ];
+    for (var noun in nounsNeedingArticle) {
+      sentence = sentence.replaceAllMapped(
+        RegExp('\\b$noun\\b', caseSensitive: false),
+        (m) => "the $noun",
+      );
+    }
+    // Clean up double articles
+    sentence = sentence.replaceAll(RegExp(r'\bthe the\b'), 'the');
+
+    return sentence;
+  }
+
+  String _formatSentence(String sentence) {
+    if (sentence.isEmpty) return "";
+
+    // Capitalize first letter
+    sentence = sentence[0].toUpperCase() + sentence.substring(1);
+
+    // Add period if no punctuation
+    if (!sentence.endsWith('.') &&
+        !sentence.endsWith('!') &&
+        !sentence.endsWith('?')) {
+      sentence += '.';
+    }
+
+    return sentence;
+  }
+
   /// Clear conversation history
   void clearHistory() {
     _conversationHistory.clear();
   }
-  
-  void dispose() {
-    _llamaProcessor?.unloadModel();
-  }
-}
 
-// Extension for List.takeLast
-extension TakeLast<T> on List<T> {
-  List<T> takeLast(int n) {
-    if (n >= length) return this;
-    return sublist(length - n);
+  /// Dispose of resources
+  void dispose() {
+    _conversationHistory.clear();
   }
 }

@@ -23,27 +23,27 @@ class ISLTranslatorApp extends StatelessWidget {
 
   ThemeData _buildTheme() {
     // Clean, minimal theme with neutral colors
-    const primaryColor = Color(0xFF1A1A2E);  // Dark navy
-    const accentColor = Color(0xFF16213E);   // Slightly lighter navy
-    const surfaceColor = Color(0xFFF5F5F7);  // Light gray
-    const textColor = Color(0xFF2D2D2D);     // Dark gray text
-    
+    const primaryColor = Color(0xFF1A1A2E); // Dark navy
+    const accentColor = Color(0xFF16213E); // Slightly lighter navy
+    const surfaceColor = Color(0xFFF5F5F7); // Light gray
+    const textColor = Color(0xFF2D2D2D); // Dark gray text
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      
+
       // Color scheme - neutral, professional
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: accentColor,
         surface: surfaceColor,
-        background: Colors.white,
+        surfaceContainerHighest: Colors.white,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textColor,
-        onBackground: textColor,
+        onSurfaceVariant: textColor,
       ),
-      
+
       // App bar - clean and minimal
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.white,
@@ -56,7 +56,7 @@ class ISLTranslatorApp extends StatelessWidget {
           color: textColor,
         ),
       ),
-      
+
       // Text theme
       textTheme: GoogleFonts.interTextTheme().copyWith(
         headlineLarge: GoogleFonts.inter(
@@ -85,7 +85,7 @@ class ISLTranslatorApp extends StatelessWidget {
           color: textColor,
         ),
       ),
-      
+
       // Elevated button - rounded, minimal
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -102,9 +102,9 @@ class ISLTranslatorApp extends StatelessWidget {
           ),
         ),
       ),
-      
+
       // Card theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -112,7 +112,7 @@ class ISLTranslatorApp extends StatelessWidget {
           side: BorderSide(color: Colors.grey.shade200),
         ),
       ),
-      
+
       // Input decoration
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -121,9 +121,10 @@ class ISLTranslatorApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      
+
       // Scaffold background
       scaffoldBackgroundColor: Colors.white,
     );
@@ -142,8 +143,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeScreen(),        // Sign → Text (camera)
-    const TextToSignScreen(),  // Text → Sign (avatar)
+    const HomeScreen(), // Sign → Text (camera)
+    const TextToSignScreen(), // Text → Sign (avatar)
   ];
 
   @override

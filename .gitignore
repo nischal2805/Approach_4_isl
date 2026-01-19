@@ -1,1 +1,94 @@
+# ===================
+# ISL Translator Project .gitignore
+# ===================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+kortex/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ===================
+# Large Model Files (DO NOT COMMIT)
+# ===================
+*.pt
+*.pth
+*.onnx
+*.h5
+*.keras
+*.gguf
 iteration_2_best.pt
+
+# Keep these model files for app
+# !isl_app/assets/model.tflite
+# !isl_app/assets/scaler.json
+# !isl_app/assets/labels.txt
+
+# Checkpoints
+isl_translation/checkpoints/
+isl_recognition/models/*.keras
+
+# Logs
+*.log
+logs/
+isl_translation/logs/
+
+# Data (keep structure, ignore large files)
+isl_recognition/data/processed/
+isl_recognition/data/Greetings/
+*.csv
+*.mp4
+*.avi
+*.mov
+
+# Flutter build artifacts (handled by isl_app/.gitignore)
+isl_app/build/
+isl_app/.dart_tool/
+isl_app/.packages
+isl_app/.pub-cache/
+isl_app/.pub/
+
+# Android specific
+isl_app/android/.gradle/
+isl_app/android/app/build/
+isl_app/android/local.properties
+*.apk
+*.aab
+
+# iOS
+isl_app/ios/Pods/
+isl_app/ios/.symlinks/
+
+# MediaPipe task files in android assets (large)
+isl_app/android/app/src/main/assets/*.task

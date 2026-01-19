@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 
 /// Service for communicating with the ISL Translation API
 class TranslationService {

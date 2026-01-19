@@ -1,74 +1,101 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 /// Classifier for ISL signs using TFLite model
+/// Processes sequences of frames (30 frames = 1 sign) with proper aggregation
 class SignClassifier {
   Interpreter? _interpreter;
   List<String> _labels = [];
   bool _isLoaded = false;
+  int _numClasses = 0;
   
   // Scaler parameters (loaded from scaler.json)
   List<double>? _scalerMean;
   List<double>? _scalerStd;
   
-  // Sliding window buffer
-  final List<List<double>> _landmarkBuffer = [];
-  static const int TARGET_FRAMES = 30; // 1 second buffer
-  static const int LANDMARKS_PER_FRAME = 225;
+  // Feature dimensions
+  static const int LANDMARKS_PER_FRAME = 225; // 75 landmarks * 3 coords
+  static const int EXPECTED_FEATURES = 675;   // 225 * 3 (mean, max, std)
   
   Future<void> loadModel() async {
     try {
-      // Load TFLite model
+      // Load TFLite model with GPU delegate for Snapdragon 8 Gen 2
       final options = InterpreterOptions();
-      // Use XNNPACK or GPU delegate if supported
-      // options.addDelegate(XNNPackDelegate()); 
+      
+      try {
+        final gpuDelegate = GpuDelegate(options: GpuDelegateOptions());
+        options.addDelegate(gpuDelegate);
+        print('SignClassifier: GPU delegate enabled');
+      } catch (e) {
+        print('SignClassifier: GPU not available, using CPU: $e');
+      }
       
       _interpreter = await Interpreter.fromAsset('assets/model.tflite', options: options);
+      
+      // Get actual output shape from model
+      final outputTensor = _interpreter!.getOutputTensor(0);
+      _numClasses = outputTensor.shape[1]; // [1, num_classes]
+      print('SignClassifier: Model output classes: $_numClasses');
       
       // Load labels
       final labelData = await rootBundle.loadString('assets/labels.txt');
       _labels = labelData.split('\n').where((l) => l.isNotEmpty).toList();
       
-      // Load scaler parameters (optional - if not found, skip scaling)
+      // Handle mismatch
+      if (_labels.length != _numClasses) {
+        print('WARNING: Label count (${_labels.length}) != model classes ($_numClasses)');
+        if (_labels.length > _numClasses) {
+          _labels = _labels.sublist(0, _numClasses);
+        }
+      }
+      
+      // Load scaler parameters (REQUIRED for proper inference)
       try {
         final scalerData = await rootBundle.loadString('assets/scaler.json');
         final Map<String, dynamic> scaler = jsonDecode(scalerData);
         _scalerMean = List<double>.from(scaler['mean']);
         _scalerStd = List<double>.from(scaler['std']);
-        print('Scaler loaded: ${_scalerMean!.length} features');
+        
+        if (_scalerMean!.length != EXPECTED_FEATURES) {
+          throw Exception('Scaler dimension mismatch: expected $EXPECTED_FEATURES, got ${_scalerMean!.length}');
+        }
+        
+        print('SignClassifier: Scaler loaded (${_scalerMean!.length} features)');
       } catch (e) {
-        print('Scaler not found, using raw features: $e');
+        print('WARNING: Scaler loading failed: $e');
+        // Continue without scaler - will use raw features
       }
       
       _isLoaded = true;
-      print('SignClassifier loaded: ${_labels.length} classes');
+      print('SignClassifier: Loaded with $_numClasses classes');
     } catch (e) {
-      print('Error loading model: $e');
+      print('SignClassifier: Error loading model: $e');
+      rethrow;
     }
   }
 
-  /// Process new frame landmarks and return prediction if ready
-  Future<Map<String, dynamic>?> processFrame(List<double> landmarks) async {
-    if (!_isLoaded) return null;
+  /// Classify a complete sequence of frames (for batch/recording mode)
+  /// This is the proper way to use the model - matches training data
+  /// 
+  /// [frames] - List of landmark arrays, each with 225 values
+  /// Returns prediction with label, confidence, and index
+  Future<Map<String, dynamic>?> classifySequence(List<List<double>> frames) async {
+    if (!_isLoaded || frames.isEmpty) return null;
     
-    // Add to buffer
-    _landmarkBuffer.add(landmarks);
-    
-    // Maintain buffer size
-    if (_landmarkBuffer.length > TARGET_FRAMES) {
-      _landmarkBuffer.removeAt(0);
+    // Validate frame dimensions
+    for (int i = 0; i < frames.length; i++) {
+      if (frames[i].length != LANDMARKS_PER_FRAME) {
+        print('WARNING: Frame $i has ${frames[i].length} landmarks, expected $LANDMARKS_PER_FRAME');
+        return null;
+      }
     }
     
-    // Only predict if we have enough frames
-    if (_landmarkBuffer.length < 10) return null; // Min frames needed
+    // Aggregate features from all frames: mean, max, std
+    var features = _aggregateFeatures(frames);
     
-    // Aggregate features
-    var features = _aggregateFeatures();
-    
-    // Apply scaling if scaler is loaded
+    // Apply StandardScaler transformation
     features = _scaleFeatures(features);
     
     // Run inference
@@ -78,68 +105,72 @@ class SignClassifier {
   /// Apply StandardScaler transformation: (x - mean) / std
   List<double> _scaleFeatures(List<double> features) {
     if (_scalerMean == null || _scalerStd == null) {
-      return features; // No scaling if scaler not loaded
+      return features;
     }
     
     return List.generate(features.length, (i) {
       double std = _scalerStd![i];
-      if (std == 0) std = 1.0; // Avoid division by zero
+      if (std == 0) std = 1.0;
       return (features[i] - _scalerMean![i]) / std;
     });
   }
   
-  List<double> _aggregateFeatures() {
-    // Shape: [frames, 225] -> [675] (mean, max, std)
-    
-    final int frames = _landmarkBuffer.length;
-    final int dim = LANDMARKS_PER_FRAME;
+  /// Aggregate frame landmarks into features: [mean, max, std]
+  /// Input: [frames, 225] -> Output: [675]
+  List<double> _aggregateFeatures(List<List<double>> frames) {
+    final int numFrames = frames.length;
+    const int dim = LANDMARKS_PER_FRAME;
     
     final mean = List<double>.filled(dim, 0.0);
-    final maxVals = List<double>.filled(dim, -999.0);
-    final std = List<double>.filled(dim, 0.0);
+    final maxVals = List<double>.filled(dim, double.negativeInfinity);
+    final stdDev = List<double>.filled(dim, 0.0);
     
-    // 1. Calculate Mean and Max
-    for (int i = 0; i < frames; i++) {
+    // 1. Calculate mean and max
+    for (int i = 0; i < numFrames; i++) {
       for (int j = 0; j < dim; j++) {
-        double val = _landmarkBuffer[i][j];
+        double val = frames[i][j];
         mean[j] += val;
-        maxVals[j] = max(maxVals[j], val);
+        if (val > maxVals[j]) {
+          maxVals[j] = val;
+        }
       }
     }
     
     for (int j = 0; j < dim; j++) {
-      mean[j] /= frames;
+      mean[j] /= numFrames;
     }
     
-    // 2. Calculate Std Dev
-    for (int i = 0; i < frames; i++) {
+    // 2. Calculate standard deviation
+    for (int i = 0; i < numFrames; i++) {
       for (int j = 0; j < dim; j++) {
-        double val = _landmarkBuffer[i][j];
-        double diff = val - mean[j];
-        std[j] += diff * diff;
+        double diff = frames[i][j] - mean[j];
+        stdDev[j] += diff * diff;
       }
     }
     
     for (int j = 0; j < dim; j++) {
-      std[j] = sqrt(std[j] / frames);
+      stdDev[j] = sqrt(stdDev[j] / numFrames);
     }
     
-    // Concatenate [mean, max, std]
-    return [...mean, ...maxVals, ...std];
+    // Concatenate: [mean (225), max (225), std (225)] = 675 features
+    return [...mean, ...maxVals, ...stdDev];
   }
   
+  /// Run TFLite inference with softmax
   Map<String, dynamic> _predict(List<double> features) {
     // Input tensor: [1, 675]
     var input = [features];
     
     // Output tensor: [1, num_classes]
-    var output = List.filled(1 * _labels.length, 0.0).reshape([1, _labels.length]);
+    var output = List.filled(1 * _numClasses, 0.0).reshape([1, _numClasses]);
     
     _interpreter!.run(input, output);
     
-    // Find best class
-    List<double> probabilities = List<double>.from(output[0]);
+    // Get logits and apply softmax
+    List<double> logits = List<double>.from(output[0]);
+    List<double> probabilities = _softmax(logits);
     
+    // Find best class
     double maxScore = -1.0;
     int maxIndex = -1;
     
@@ -150,7 +181,7 @@ class SignClassifier {
       }
     }
     
-    String label = maxIndex >= 0 && maxIndex < _labels.length 
+    String label = (maxIndex >= 0 && maxIndex < _labels.length) 
         ? _labels[maxIndex] 
         : 'Unknown';
         
@@ -161,8 +192,19 @@ class SignClassifier {
     };
   }
   
-  void reset() {
-    _landmarkBuffer.clear();
+  /// Softmax activation for proper probability distribution
+  List<double> _softmax(List<double> logits) {
+    // Find max for numerical stability
+    double maxLogit = logits.reduce((a, b) => a > b ? a : b);
+    
+    // Compute exp(x - max) for stability
+    List<double> expVals = logits.map((x) => exp(x - maxLogit)).toList();
+    
+    // Sum
+    double sumExp = expVals.reduce((a, b) => a + b);
+    
+    // Normalize
+    return expVals.map((x) => x / sumExp).toList();
   }
   
   void close() {
