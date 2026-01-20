@@ -1,0 +1,46 @@
+﻿{
+    "count":  10,
+    "type":  "number",
+    "signs":  [
+                  {
+                      "file":  "0.json",
+                      "label":  "0"
+                  },
+                  {
+                      "file":  "1.json",
+                      "label":  "1"
+                  },
+                  {
+                      "file":  "2.json",
+                      "label":  "2"
+                  },
+                  {
+                      "file":  "3.json",
+                      "label":  "3"
+                  },
+                  {
+                      "file":  "4.json",
+                      "label":  "4"
+                  },
+                  {
+                      "file":  "5.json",
+                      "label":  "5"
+                  },
+                  {
+                      "file":  "6.json",
+                      "label":  "6"
+                  },
+                  {
+                      "file":  "7.json",
+                      "label":  "7"
+                  },
+                  {
+                      "file":  "8.json",
+                      "label":  "8"
+                  },
+                  {
+                      "file":  "9.json",
+                      "label":  "9"
+                  }
+              ]
+}

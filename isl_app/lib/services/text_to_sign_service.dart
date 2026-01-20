@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Model for a single frame of landmark data
@@ -108,10 +109,12 @@ class TextToSignService {
       await _loadIndex('assets/signs/numbers/index.json', _numberDictionary);
       
       _isLoaded = true;
-      print('TextToSignService loaded: ${_wordDictionary.length} words, '
+      if (kDebugMode) {
+        debugPrint('TextToSignService loaded: ${_wordDictionary.length} words, '
             '${_letterDictionary.length} letters, ${_numberDictionary.length} numbers');
+      }
     } catch (e) {
-      print('Error loading TextToSignService: $e');
+      if (kDebugMode) debugPrint('Error loading TextToSignService: $e');
     }
   }
 
@@ -126,7 +129,7 @@ class TextToSignService {
         dictionary[label] = path.replaceAll('index.json', file);
       }
     } catch (e) {
-      print('Index not found: $path');
+      if (kDebugMode) debugPrint('Index not found: $path');
     }
   }
 
@@ -222,7 +225,7 @@ class TextToSignService {
       final jsonStr = await rootBundle.loadString(item.path);
       return SignData.fromJson(jsonDecode(jsonStr));
     } catch (e) {
-      print('Failed to load sign: ${item.path}');
+      if (kDebugMode) debugPrint('Failed to load sign: ${item.path}');
       return SignData.unknown(item.label);
     }
   }

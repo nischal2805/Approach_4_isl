@@ -18,10 +18,10 @@ class LandmarkService {
     try {
       final result = await _channel.invokeMethod<bool>('initialize');
       _isInitialized = result ?? false;
-      debugPrint('LandmarkService initialized: $_isInitialized');
+      if (kDebugMode) debugPrint('LandmarkService initialized: $_isInitialized');
       return _isInitialized;
     } catch (e) {
-      debugPrint('LandmarkService initialization error: $e');
+      if (kDebugMode) debugPrint('LandmarkService initialization error: $e');
       return false;
     }
   }
@@ -37,20 +37,26 @@ class LandmarkService {
   Future<List<double>> extractLandmarks(CameraImage image) async {
     if (!_isInitialized) {
       // Try to initialize if not done
+      if (kDebugMode) debugPrint('LandmarkService: Not initialized, attempting init...');
       final success = await initialize();
-      if (!success) return [];
+      if (!success) {
+        if (kDebugMode) debugPrint('LandmarkService: Init failed!');
+        return [];
+      }
     }
 
     try {
       // Convert CameraImage to bytes for native processing
       final bytes = _convertCameraImageToBytes(image);
       if (bytes == null) {
-        debugPrint('Failed to convert camera image to bytes');
+        if (kDebugMode) debugPrint('LandmarkService: Failed to convert camera image');
         return [];
       }
       
       // Calculate rotation for native side
       int rotation = _calculateRotation();
+      
+      if (kDebugMode) debugPrint('LandmarkService: Calling native with ${bytes.length} bytes, ${image.width}x${image.height}, rot=$rotation');
       
       // Call native MediaPipe via platform channel
       final result = await _channel.invokeMethod<List<dynamic>>('processFrame', {
@@ -60,7 +66,13 @@ class LandmarkService {
         'rotation': rotation,
       });
       
-      if (result == null || result.isEmpty) {
+      if (result == null) {
+        if (kDebugMode) debugPrint('LandmarkService: Native returned null');
+        return [];
+      }
+      
+      if (result.isEmpty) {
+        if (kDebugMode) debugPrint('LandmarkService: Native returned empty list');
         return [];
       }
       
@@ -69,19 +81,49 @@ class LandmarkService {
       
       // Validate we got the expected 225 features
       if (landmarks.length != 225) {
-        debugPrint('Unexpected landmark count: ${landmarks.length}, expected 225');
+        if (kDebugMode) debugPrint('LandmarkService: Got ${landmarks.length} landmarks, expected 225');
         return [];
       }
       
       // Check if any meaningful data (not all zeros)
-      final hasData = landmarks.any((v) => v != 0.0);
-      if (!hasData) {
+      final nonZeroCount = landmarks.where((v) => v != 0.0).length;
+      if (nonZeroCount == 0) {
+        if (kDebugMode) debugPrint('LandmarkService: All zeros (no pose detected)');
         return [];
       }
       
+      // =================================================================
+      // CRITICAL FIX: Normalize Z-coordinates to match Python MediaPipe
+      // =================================================================
+      // MediaPipe Tasks Vision (Kotlin) outputs z-values ~4-5x larger than
+      // Python MediaPipe Holistic used for training:
+      //   - Python training z: mean ≈ -0.4, range roughly [-0.6, -0.2]
+      //   - Kotlin runtime z:  mean ≈ -1.5 to -2.0, range [-3, 0]
+      // 
+      // Scale factor: Python z ≈ Kotlin z * 0.25
+      // This is applied to every z-coordinate (indices 2, 5, 8, 11, ...)
+      const double zScaleFactor = 0.25;
+      for (int i = 2; i < landmarks.length; i += 3) {
+        landmarks[i] *= zScaleFactor;
+      }
+      
+      // DEBUG: Check landmark value ranges after z-normalization
+      if (kDebugMode) {
+        final minVal = landmarks.reduce((a, b) => a < b ? a : b);
+        final maxVal = landmarks.reduce((a, b) => a > b ? a : b);
+        // Sample some values: first pose x,y,z and first hand x,y,z
+        debugPrint('LandmarkService: Normalized landmarks range: [${minVal.toStringAsFixed(3)}, ${maxVal.toStringAsFixed(3)}]');
+        debugPrint('LandmarkService: Sample pose[0]: x=${landmarks[0].toStringAsFixed(3)}, y=${landmarks[1].toStringAsFixed(3)}, z=${landmarks[2].toStringAsFixed(3)}');
+        if (landmarks.length > 102) {
+          // First left hand landmark (index 99 = 33*3)
+          debugPrint('LandmarkService: Sample hand[0]: x=${landmarks[99].toStringAsFixed(3)}, y=${landmarks[100].toStringAsFixed(3)}, z=${landmarks[101].toStringAsFixed(3)}');
+        }
+      }
+      
+      if (kDebugMode) debugPrint('LandmarkService: SUCCESS - ${landmarks.length} landmarks, $nonZeroCount non-zero');
       return landmarks;
     } catch (e) {
-      debugPrint('Error extracting landmarks: $e');
+      if (kDebugMode) debugPrint('LandmarkService: Error: $e');
       return [];
     }
   }
@@ -99,10 +141,10 @@ class LandmarkService {
         return image.planes[0].bytes;
       }
       
-      debugPrint('Unsupported image format: ${image.format.group}');
+      if (kDebugMode) debugPrint('Unsupported image format: ${image.format.group}');
       return null;
     } catch (e) {
-      debugPrint('Error converting image: $e');
+      if (kDebugMode) debugPrint('Error converting image: $e');
       return null;
     }
   }
@@ -172,9 +214,9 @@ class LandmarkService {
       try {
         await _channel.invokeMethod('dispose');
         _isInitialized = false;
-        debugPrint('LandmarkService disposed');
+        if (kDebugMode) debugPrint('LandmarkService disposed');
       } catch (e) {
-        debugPrint('Error disposing LandmarkService: $e');
+        if (kDebugMode) debugPrint('Error disposing LandmarkService: $e');
       }
     }
   }

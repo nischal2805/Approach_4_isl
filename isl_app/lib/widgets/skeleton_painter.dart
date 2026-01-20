@@ -4,12 +4,14 @@ import '../services/text_to_sign_service.dart';
 /// Custom painter to draw 2D skeleton from landmarks
 class SkeletonPainter extends CustomPainter {
   final SignFrame? frame;
+  final String signType; // "word", "letter", "number"
   final Color poseColor;
   final Color leftHandColor;
   final Color rightHandColor;
 
   SkeletonPainter({
     this.frame,
+    this.signType = 'word',
     this.poseColor = Colors.white,
     this.leftHandColor = const Color(0xFF4CAF50),
     this.rightHandColor = const Color(0xFF2196F3),
@@ -54,8 +56,12 @@ class SkeletonPainter extends CustomPainter {
       return;
     }
 
-    // Draw pose
-    if (frame!.pose != null) {
+    bool hasAnyData = false;
+    bool isFingerSpelling = signType == 'letter' || signType == 'number';
+
+    // Draw pose only for word signs (skip for letters/numbers to avoid jumping)
+    if (!isFingerSpelling && frame!.pose != null && frame!.pose!.isNotEmpty) {
+      hasAnyData = true;
       _drawSkeleton(
         canvas, size,
         frame!.pose!,
@@ -66,24 +72,53 @@ class SkeletonPainter extends CustomPainter {
       );
     }
 
-    // Draw left hand (scaled and positioned relative to wrist)
-    if (frame!.leftHand != null && frame!.pose != null && frame!.pose!.length > 15) {
-      _drawHand(
-        canvas, size,
-        frame!.leftHand!,
-        frame!.pose![15], // Left wrist from pose
-        leftHandColor,
-      );
+    // Draw left hand
+    if (frame!.leftHand != null && frame!.leftHand!.isNotEmpty) {
+      hasAnyData = true;
+      if (!isFingerSpelling && frame!.pose != null && frame!.pose!.length > 15) {
+        // Position relative to wrist from pose (for words)
+        _drawHand(
+          canvas, size,
+          frame!.leftHand!,
+          frame!.pose![15],
+          leftHandColor,
+        );
+      } else {
+        // Center hand for fingerspelling
+        _drawHandCentered(
+          canvas, size,
+          frame!.leftHand!,
+          leftHandColor,
+          offsetX: frame!.rightHand != null ? -0.2 : 0.0,
+        );
+      }
     }
 
     // Draw right hand
-    if (frame!.rightHand != null && frame!.pose != null && frame!.pose!.length > 16) {
-      _drawHand(
-        canvas, size,
-        frame!.rightHand!,
-        frame!.pose![16], // Right wrist from pose
-        rightHandColor,
-      );
+    if (frame!.rightHand != null && frame!.rightHand!.isNotEmpty) {
+      hasAnyData = true;
+      if (!isFingerSpelling && frame!.pose != null && frame!.pose!.length > 16) {
+        // Position relative to wrist from pose (for words)
+        _drawHand(
+          canvas, size,
+          frame!.rightHand!,
+          frame!.pose![16],
+          rightHandColor,
+        );
+      } else {
+        // No pose - draw hand centered (for letter/number signs)
+        _drawHandCentered(
+          canvas, size,
+          frame!.rightHand!,
+          rightHandColor,
+          offsetX: 0.15, // Slightly right of center
+        );
+      }
+    }
+
+    // If no data at all, show placeholder
+    if (!hasAnyData) {
+      _drawPlaceholder(canvas, size);
     }
   }
 
@@ -172,6 +207,74 @@ class SkeletonPainter extends CustomPainter {
     }
   }
 
+  /// Draw hand centered on screen (for letter/number signs without pose data)
+  void _drawHandCentered(
+    Canvas canvas,
+    Size size,
+    List<List<double>> handLandmarks,
+    Color color, {
+    double offsetX = 0.0,
+  }) {
+    final jointPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final bonePaint = Paint()
+      ..color = color.withOpacity(0.9)
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Calculate bounding box of hand landmarks
+    double minX = 1.0, maxX = 0.0, minY = 1.0, maxY = 0.0;
+    for (var lm in handLandmarks) {
+      if (lm[0] < minX) minX = lm[0];
+      if (lm[0] > maxX) maxX = lm[0];
+      if (lm[1] < minY) minY = lm[1];
+      if (lm[1] > maxY) maxY = lm[1];
+    }
+
+    // Center and scale to fit nicely in the view
+    double handWidth = maxX - minX;
+    double handHeight = maxY - minY;
+    double handCenterX = (minX + maxX) / 2;
+    double handCenterY = (minY + maxY) / 2;
+
+    // Scale to fill about 60% of the smaller dimension
+    double scale = 0.6 / (handWidth > handHeight ? handWidth : handHeight);
+    scale = scale.clamp(0.8, 2.5); // Reasonable bounds
+
+    // Target center position
+    double targetX = 0.5 + offsetX;
+    double targetY = 0.45; // Slightly above center
+
+    // Draw bones
+    for (var connection in handConnections) {
+      if (connection[0] < handLandmarks.length && connection[1] < handLandmarks.length) {
+        var p1 = handLandmarks[connection[0]];
+        var p2 = handLandmarks[connection[1]];
+
+        double x1 = (targetX + (p1[0] - handCenterX) * scale) * size.width;
+        double y1 = (targetY + (p1[1] - handCenterY) * scale) * size.height;
+        double x2 = (targetX + (p2[0] - handCenterX) * scale) * size.width;
+        double y2 = (targetY + (p2[1] - handCenterY) * scale) * size.height;
+
+        canvas.drawLine(Offset(x1, y1), Offset(x2, y2), bonePaint);
+      }
+    }
+
+    // Draw joints with gradient-like effect (larger at fingertips)
+    for (int i = 0; i < handLandmarks.length; i++) {
+      var landmark = handLandmarks[i];
+      double x = (targetX + (landmark[0] - handCenterX) * scale) * size.width;
+      double y = (targetY + (landmark[1] - handCenterY) * scale) * size.height;
+      
+      // Fingertips (4, 8, 12, 16, 20) are larger
+      double radius = [4, 8, 12, 16, 20].contains(i) ? 5.0 : 3.0;
+      canvas.drawCircle(Offset(x, y), radius, jointPaint);
+    }
+  }
+
   void _drawPlaceholder(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.grey.withOpacity(0.3)
@@ -198,18 +301,20 @@ class SkeletonPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant SkeletonPainter oldDelegate) {
-    return frame != oldDelegate.frame;
+    return frame != oldDelegate.frame || signType != oldDelegate.signType;
   }
 }
 
 /// Widget to display the skeleton animation
 class SkeletonAvatar extends StatelessWidget {
   final SignFrame? frame;
+  final String signType;
   final Color backgroundColor;
 
   const SkeletonAvatar({
     super.key,
     this.frame,
+    this.signType = 'word',
     this.backgroundColor = const Color(0xFF1A1A2E),
   });
 
@@ -221,7 +326,7 @@ class SkeletonAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: CustomPaint(
-        painter: SkeletonPainter(frame: frame),
+        painter: SkeletonPainter(frame: frame, signType: signType),
         size: Size.infinite,
       ),
     );

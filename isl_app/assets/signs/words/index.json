@@ -1,0 +1,1022 @@
+{
+  "type": "word",
+  "count": 254,
+  "signs": [
+    {
+      "label": "loud",
+      "file": "loud.json"
+    },
+    {
+      "label": "Mean",
+      "file": "mean.json"
+    },
+    {
+      "label": "rich",
+      "file": "rich.json"
+    },
+    {
+      "label": "poor",
+      "file": "poor.json"
+    },
+    {
+      "label": "thick",
+      "file": "thick.json"
+    },
+    {
+      "label": "thin",
+      "file": "thin.json"
+    },
+    {
+      "label": "expensive",
+      "file": "expensive.json"
+    },
+    {
+      "label": "cheap",
+      "file": "cheap.json"
+    },
+    {
+      "label": "flat",
+      "file": "flat.json"
+    },
+    {
+      "label": "curved",
+      "file": "curved.json"
+    },
+    {
+      "label": "male",
+      "file": "male.json"
+    },
+    {
+      "label": "quiet",
+      "file": "quiet.json"
+    },
+    {
+      "label": "female",
+      "file": "female.json"
+    },
+    {
+      "label": "tight",
+      "file": "tight.json"
+    },
+    {
+      "label": "loose",
+      "file": "loose.json"
+    },
+    {
+      "label": "high",
+      "file": "high.json"
+    },
+    {
+      "label": "low",
+      "file": "low.json"
+    },
+    {
+      "label": "soft",
+      "file": "soft.json"
+    },
+    {
+      "label": "hard",
+      "file": "hard.json"
+    },
+    {
+      "label": "deep",
+      "file": "deep.json"
+    },
+    {
+      "label": "shallow",
+      "file": "shallow.json"
+    },
+    {
+      "label": "clean",
+      "file": "clean.json"
+    },
+    {
+      "label": "happy",
+      "file": "happy.json"
+    },
+    {
+      "label": "dirty",
+      "file": "dirty.json"
+    },
+    {
+      "label": "strong",
+      "file": "strong.json"
+    },
+    {
+      "label": "weak",
+      "file": "weak.json"
+    },
+    {
+      "label": "dead",
+      "file": "dead.json"
+    },
+    {
+      "label": "alive",
+      "file": "alive.json"
+    },
+    {
+      "label": "heavy",
+      "file": "heavy.json"
+    },
+    {
+      "label": "light",
+      "file": "light.json"
+    },
+    {
+      "label": "famous",
+      "file": "famous.json"
+    },
+    {
+      "label": "sad",
+      "file": "sad.json"
+    },
+    {
+      "label": "Beautiful",
+      "file": "beautiful.json"
+    },
+    {
+      "label": "Ugly",
+      "file": "ugly.json"
+    },
+    {
+      "label": "Deaf",
+      "file": "deaf.json"
+    },
+    {
+      "label": "long",
+      "file": "long.json"
+    },
+    {
+      "label": "short",
+      "file": "short.json"
+    },
+    {
+      "label": "Blind",
+      "file": "blind.json"
+    },
+    {
+      "label": "tall",
+      "file": "tall.json"
+    },
+    {
+      "label": "wide",
+      "file": "wide.json"
+    },
+    {
+      "label": "narrow",
+      "file": "narrow.json"
+    },
+    {
+      "label": "big large",
+      "file": "big_large.json"
+    },
+    {
+      "label": "small little",
+      "file": "small_little.json"
+    },
+    {
+      "label": "slow",
+      "file": "slow.json"
+    },
+    {
+      "label": "fast",
+      "file": "fast.json"
+    },
+    {
+      "label": "hot",
+      "file": "hot.json"
+    },
+    {
+      "label": "cold",
+      "file": "cold.json"
+    },
+    {
+      "label": "warm",
+      "file": "warm.json"
+    },
+    {
+      "label": "Nice",
+      "file": "nice.json"
+    },
+    {
+      "label": "cool",
+      "file": "cool.json"
+    },
+    {
+      "label": "new",
+      "file": "new.json"
+    },
+    {
+      "label": "old",
+      "file": "old.json"
+    },
+    {
+      "label": "young",
+      "file": "young.json"
+    },
+    {
+      "label": "good",
+      "file": "good.json"
+    },
+    {
+      "label": "bad",
+      "file": "bad.json"
+    },
+    {
+      "label": "wet",
+      "file": "wet.json"
+    },
+    {
+      "label": "dry",
+      "file": "dry.json"
+    },
+    {
+      "label": "sick",
+      "file": "sick.json"
+    },
+    {
+      "label": "healthy",
+      "file": "healthy.json"
+    },
+    {
+      "label": "Dog",
+      "file": "dog.json"
+    },
+    {
+      "label": "Cat",
+      "file": "cat.json"
+    },
+    {
+      "label": "Fish",
+      "file": "fish.json"
+    },
+    {
+      "label": "Bird",
+      "file": "bird.json"
+    },
+    {
+      "label": "Cow",
+      "file": "cow.json"
+    },
+    {
+      "label": "Mouse",
+      "file": "mouse.json"
+    },
+    {
+      "label": "Horse",
+      "file": "horse.json"
+    },
+    {
+      "label": "Animal",
+      "file": "animal.json"
+    },
+    {
+      "label": "Hat",
+      "file": "hat.json"
+    },
+    {
+      "label": "Dress",
+      "file": "dress.json"
+    },
+    {
+      "label": "Suit",
+      "file": "suit.json"
+    },
+    {
+      "label": "Skirt",
+      "file": "skirt.json"
+    },
+    {
+      "label": "Shirt",
+      "file": "shirt.json"
+    },
+    {
+      "label": "T-Shirt",
+      "file": "t-shirt.json"
+    },
+    {
+      "label": "Pant",
+      "file": "pant.json"
+    },
+    {
+      "label": "Shoes",
+      "file": "shoes.json"
+    },
+    {
+      "label": "Pocket",
+      "file": "pocket.json"
+    },
+    {
+      "label": "Clothing",
+      "file": "clothing.json"
+    },
+    {
+      "label": "Red",
+      "file": "red.json"
+    },
+    {
+      "label": "Green",
+      "file": "green.json"
+    },
+    {
+      "label": "Blue",
+      "file": "blue.json"
+    },
+    {
+      "label": "Yellow",
+      "file": "yellow.json"
+    },
+    {
+      "label": "Brown",
+      "file": "brown.json"
+    },
+    {
+      "label": "Pink",
+      "file": "pink.json"
+    },
+    {
+      "label": "Orange",
+      "file": "orange.json"
+    },
+    {
+      "label": "Black",
+      "file": "black.json"
+    },
+    {
+      "label": "White",
+      "file": "white.json"
+    },
+    {
+      "label": "Grey",
+      "file": "grey.json"
+    },
+    {
+      "label": "Colour",
+      "file": "colour.json"
+    },
+    {
+      "label": "Sunday",
+      "file": "sunday.json"
+    },
+    {
+      "label": "Monday",
+      "file": "monday.json"
+    },
+    {
+      "label": "Tuesday",
+      "file": "tuesday.json"
+    },
+    {
+      "label": "Wednesday",
+      "file": "wednesday.json"
+    },
+    {
+      "label": "Thursday",
+      "file": "thursday.json"
+    },
+    {
+      "label": "Friday",
+      "file": "friday.json"
+    },
+    {
+      "label": "Saturday",
+      "file": "saturday.json"
+    },
+    {
+      "label": "Today",
+      "file": "today.json"
+    },
+    {
+      "label": "Tomorrow",
+      "file": "tomorrow.json"
+    },
+    {
+      "label": "Yesterday",
+      "file": "yesterday.json"
+    },
+    {
+      "label": "Week",
+      "file": "week.json"
+    },
+    {
+      "label": "Month",
+      "file": "month.json"
+    },
+    {
+      "label": "Year",
+      "file": "year.json"
+    },
+    {
+      "label": "Hour",
+      "file": "hour.json"
+    },
+    {
+      "label": "Minute",
+      "file": "minute.json"
+    },
+    {
+      "label": "Second",
+      "file": "second.json"
+    },
+    {
+      "label": "Morning",
+      "file": "morning.json"
+    },
+    {
+      "label": "Afternoon",
+      "file": "afternoon.json"
+    },
+    {
+      "label": "Evening",
+      "file": "evening.json"
+    },
+    {
+      "label": "Night",
+      "file": "night.json"
+    },
+    {
+      "label": "Time",
+      "file": "time.json"
+    },
+    {
+      "label": "Clock",
+      "file": "clock.json"
+    },
+    {
+      "label": "Lamp",
+      "file": "lamp.json"
+    },
+    {
+      "label": "Fan",
+      "file": "fan.json"
+    },
+    {
+      "label": "Cell phone",
+      "file": "cell_phone.json"
+    },
+    {
+      "label": "Computer",
+      "file": "computer.json"
+    },
+    {
+      "label": "Laptop",
+      "file": "laptop.json"
+    },
+    {
+      "label": "Screen",
+      "file": "screen.json"
+    },
+    {
+      "label": "Camera",
+      "file": "camera.json"
+    },
+    {
+      "label": "Television",
+      "file": "television.json"
+    },
+    {
+      "label": "Radio",
+      "file": "radio.json"
+    },
+    {
+      "label": "Hello",
+      "file": "hello.json"
+    },
+    {
+      "label": "How are you",
+      "file": "how_are_you.json"
+    },
+    {
+      "label": "Alright",
+      "file": "alright.json"
+    },
+    {
+      "label": "Good Morning",
+      "file": "good_morning.json"
+    },
+    {
+      "label": "Good afternoon",
+      "file": "good_afternoon.json"
+    },
+    {
+      "label": "Good evening",
+      "file": "good_evening.json"
+    },
+    {
+      "label": "Good night",
+      "file": "good_night.json"
+    },
+    {
+      "label": "Thank you",
+      "file": "thank_you.json"
+    },
+    {
+      "label": "Pleased",
+      "file": "pleased.json"
+    },
+    {
+      "label": "Table",
+      "file": "table.json"
+    },
+    {
+      "label": "Chair",
+      "file": "chair.json"
+    },
+    {
+      "label": "Bed",
+      "file": "bed.json"
+    },
+    {
+      "label": "Dream",
+      "file": "dream.json"
+    },
+    {
+      "label": "Window",
+      "file": "window.json"
+    },
+    {
+      "label": "Door",
+      "file": "door.json"
+    },
+    {
+      "label": "Bedroom",
+      "file": "bedroom.json"
+    },
+    {
+      "label": "Kitchen",
+      "file": "kitchen.json"
+    },
+    {
+      "label": "Bathroom",
+      "file": "bathroom.json"
+    },
+    {
+      "label": "Pencil",
+      "file": "pencil.json"
+    },
+    {
+      "label": "Pen",
+      "file": "pen.json"
+    },
+    {
+      "label": "Photograph",
+      "file": "photograph.json"
+    },
+    {
+      "label": "Soap",
+      "file": "soap.json"
+    },
+    {
+      "label": "Book",
+      "file": "book.json"
+    },
+    {
+      "label": "Page",
+      "file": "page.json"
+    },
+    {
+      "label": "Key",
+      "file": "key.json"
+    },
+    {
+      "label": "Paint",
+      "file": "paint.json"
+    },
+    {
+      "label": "Letter",
+      "file": "letter.json"
+    },
+    {
+      "label": "Paper",
+      "file": "paper.json"
+    },
+    {
+      "label": "Lock",
+      "file": "lock.json"
+    },
+    {
+      "label": "Telephone",
+      "file": "telephone.json"
+    },
+    {
+      "label": "Bag",
+      "file": "bag.json"
+    },
+    {
+      "label": "Box",
+      "file": "box.json"
+    },
+    {
+      "label": "Gift",
+      "file": "gift.json"
+    },
+    {
+      "label": "Card",
+      "file": "card.json"
+    },
+    {
+      "label": "Ring",
+      "file": "ring.json"
+    },
+    {
+      "label": "Tool",
+      "file": "tool.json"
+    },
+    {
+      "label": "Teacher",
+      "file": "teacher.json"
+    },
+    {
+      "label": "Student",
+      "file": "student.json"
+    },
+    {
+      "label": "Lawyer",
+      "file": "lawyer.json"
+    },
+    {
+      "label": "Doctor",
+      "file": "doctor.json"
+    },
+    {
+      "label": "Patient",
+      "file": "patient.json"
+    },
+    {
+      "label": "Waiter",
+      "file": "waiter.json"
+    },
+    {
+      "label": "Secretary",
+      "file": "secretary.json"
+    },
+    {
+      "label": "Priest",
+      "file": "priest.json"
+    },
+    {
+      "label": "Police",
+      "file": "police.json"
+    },
+    {
+      "label": "Soldier",
+      "file": "soldier.json"
+    },
+    {
+      "label": "Artist",
+      "file": "artist.json"
+    },
+    {
+      "label": "Author",
+      "file": "author.json"
+    },
+    {
+      "label": "Manager",
+      "file": "manager.json"
+    },
+    {
+      "label": "Reporter",
+      "file": "reporter.json"
+    },
+    {
+      "label": "Actor",
+      "file": "actor.json"
+    },
+    {
+      "label": "Job",
+      "file": "job.json"
+    },
+    {
+      "label": "Plane",
+      "file": "plane.json"
+    },
+    {
+      "label": "Car",
+      "file": "car.json"
+    },
+    {
+      "label": "Truck",
+      "file": "truck.json"
+    },
+    {
+      "label": "Bicycle",
+      "file": "bicycle.json"
+    },
+    {
+      "label": "Bus",
+      "file": "bus.json"
+    },
+    {
+      "label": "Boat",
+      "file": "boat.json"
+    },
+    {
+      "label": "train ticket",
+      "file": "train_ticket.json"
+    },
+    {
+      "label": "Transportation",
+      "file": "transportation.json"
+    },
+    {
+      "label": "Train",
+      "file": "train.json"
+    },
+    {
+      "label": "Son",
+      "file": "son.json"
+    },
+    {
+      "label": "Daughter",
+      "file": "daughter.json"
+    },
+    {
+      "label": "Mother",
+      "file": "mother.json"
+    },
+    {
+      "label": "Father",
+      "file": "father.json"
+    },
+    {
+      "label": "Parent",
+      "file": "parent.json"
+    },
+    {
+      "label": "Baby",
+      "file": "baby.json"
+    },
+    {
+      "label": "Man",
+      "file": "man.json"
+    },
+    {
+      "label": "Woman",
+      "file": "woman.json"
+    },
+    {
+      "label": "Brother",
+      "file": "brother.json"
+    },
+    {
+      "label": "Sister",
+      "file": "sister.json"
+    },
+    {
+      "label": "Family",
+      "file": "family.json"
+    },
+    {
+      "label": "Grandfather",
+      "file": "grandfather.json"
+    },
+    {
+      "label": "Grandmother",
+      "file": "grandmother.json"
+    },
+    {
+      "label": "Husband",
+      "file": "husband.json"
+    },
+    {
+      "label": "Wife",
+      "file": "wife.json"
+    },
+    {
+      "label": "King",
+      "file": "king.json"
+    },
+    {
+      "label": "Queen",
+      "file": "queen.json"
+    },
+    {
+      "label": "President",
+      "file": "president.json"
+    },
+    {
+      "label": "Neighbour",
+      "file": "neighbour.json"
+    },
+    {
+      "label": "Boy",
+      "file": "boy.json"
+    },
+    {
+      "label": "Girl",
+      "file": "girl.json"
+    },
+    {
+      "label": "Child",
+      "file": "child.json"
+    },
+    {
+      "label": "Adult",
+      "file": "adult.json"
+    },
+    {
+      "label": "Friend",
+      "file": "friend.json"
+    },
+    {
+      "label": "Player",
+      "file": "player.json"
+    },
+    {
+      "label": "Crowd",
+      "file": "crowd.json"
+    },
+    {
+      "label": "City",
+      "file": "city.json"
+    },
+    {
+      "label": "House",
+      "file": "house.json"
+    },
+    {
+      "label": "Street or Road",
+      "file": "street_or_road.json"
+    },
+    {
+      "label": "Train Station",
+      "file": "train_station.json"
+    },
+    {
+      "label": "Restaurant",
+      "file": "restaurant.json"
+    },
+    {
+      "label": "Court",
+      "file": "court.json"
+    },
+    {
+      "label": "School",
+      "file": "school.json"
+    },
+    {
+      "label": "Office",
+      "file": "office.json"
+    },
+    {
+      "label": "University",
+      "file": "university.json"
+    },
+    {
+      "label": "Park",
+      "file": "park.json"
+    },
+    {
+      "label": "Store or Shop",
+      "file": "store_or_shop.json"
+    },
+    {
+      "label": "Library",
+      "file": "library.json"
+    },
+    {
+      "label": "Hospital",
+      "file": "hospital.json"
+    },
+    {
+      "label": "Temple",
+      "file": "temple.json"
+    },
+    {
+      "label": "Market",
+      "file": "market.json"
+    },
+    {
+      "label": "India",
+      "file": "india.json"
+    },
+    {
+      "label": "Ground",
+      "file": "ground.json"
+    },
+    {
+      "label": "Bank",
+      "file": "bank.json"
+    },
+    {
+      "label": "Location",
+      "file": "location.json"
+    },
+    {
+      "label": "I",
+      "file": "i.json"
+    },
+    {
+      "label": "you",
+      "file": "you.json"
+    },
+    {
+      "label": "he",
+      "file": "he.json"
+    },
+    {
+      "label": "she",
+      "file": "she.json"
+    },
+    {
+      "label": "it",
+      "file": "it.json"
+    },
+    {
+      "label": "we",
+      "file": "we.json"
+    },
+    {
+      "label": "you (plural)",
+      "file": "you_(plural).json"
+    },
+    {
+      "label": "they",
+      "file": "they.json"
+    },
+    {
+      "label": "Summer",
+      "file": "summer.json"
+    },
+    {
+      "label": "Spring",
+      "file": "spring.json"
+    },
+    {
+      "label": "Winter",
+      "file": "winter.json"
+    },
+    {
+      "label": "Fall",
+      "file": "fall.json"
+    },
+    {
+      "label": "Season",
+      "file": "season.json"
+    },
+    {
+      "label": "Monsoon",
+      "file": "monsoon.json"
+    },
+    {
+      "label": "Energy",
+      "file": "energy.json"
+    },
+    {
+      "label": "War",
+      "file": "war.json"
+    },
+    {
+      "label": "Peace",
+      "file": "peace.json"
+    },
+    {
+      "label": "Attack",
+      "file": "attack.json"
+    },
+    {
+      "label": "Election",
+      "file": "election.json"
+    },
+    {
+      "label": "Newspaper",
+      "file": "newspaper.json"
+    },
+    {
+      "label": "Gun",
+      "file": "gun.json"
+    },
+    {
+      "label": "Sport",
+      "file": "sport.json"
+    },
+    {
+      "label": "Exercise",
+      "file": "exercise.json"
+    },
+    {
+      "label": "Ball",
+      "file": "ball.json"
+    },
+    {
+      "label": "Price",
+      "file": "price.json"
+    },
+    {
+      "label": "Sign",
+      "file": "sign.json"
+    },
+    {
+      "label": "Science",
+      "file": "science.json"
+    },
+    {
+      "label": "God",
+      "file": "god.json"
+    },
+    {
+      "label": "Technology",
+      "file": "technology.json"
+    }
+  ]
+}

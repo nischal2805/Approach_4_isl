@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/home_screen.dart';
-import 'screens/text_to_sign_screen.dart';
+
+// On-device screens
+import 'screens/sign_to_text_screen.dart';
+import 'screens/text_to_sign_screen.dart';  // Uses TextToSignService with fingerspelling
+import 'services/api_config_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,15 +144,165 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  final ApiConfigService _apiConfig = ApiConfigService();
+  bool _isConnected = false;
 
   final List<Widget> _screens = [
-    const HomeScreen(), // Sign → Text (camera)
-    const TextToSignScreen(), // Text → Sign (avatar)
+    const SignToTextScreen(), // Sign → Text (camera + on-device ML)
+    const TextToSignScreen(), // Text → Sign (offline stick figure with fingerspelling)
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApi();
+  }
+
+  Future<void> _initializeApi() async {
+    await _apiConfig.initialize();
+    final connected = await _apiConfig.checkConnection();
+    if (mounted) {
+      setState(() => _isConnected = connected);
+    }
+  }
+
+  void _showApiConfigDialog() {
+    final ipController = TextEditingController(text: _apiConfig.currentIp ?? '');
+    final portController = TextEditingController(text: _apiConfig.currentPort);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Backend Server'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _isConnected ? Icons.check_circle : Icons.error,
+                  color: _isConnected ? Colors.green : Colors.red,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isConnected ? 'Connected' : 'Not Connected',
+                  style: TextStyle(
+                    color: _isConnected ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ipController,
+              decoration: const InputDecoration(
+                labelText: 'IP Address',
+                hintText: 'e.g., 192.168.1.100',
+                prefixIcon: Icon(Icons.computer),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: portController,
+              decoration: const InputDecoration(
+                labelText: 'Port',
+                hintText: '8000',
+                prefixIcon: Icon(Icons.numbers),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Try auto-discovery
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scanning network...')),
+              );
+              final ip = await _apiConfig.autoDiscover();
+              if (ip != null) {
+                setState(() => _isConnected = true);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Found backend at $ip')),
+                  );
+                }
+              } else {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Backend not found on network')),
+                  );
+                }
+              }
+            },
+            child: const Text('Auto-Find'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final ip = ipController.text.trim();
+              final port = portController.text.trim();
+              if (ip.isNotEmpty) {
+                await _apiConfig.saveSettings(ip, port.isEmpty ? '8000' : port);
+                final connected = await _apiConfig.checkConnection();
+                setState(() => _isConnected = connected);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(connected 
+                        ? 'Connected to $ip:$port' 
+                        : 'Failed to connect to $ip:$port'),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('ISL Translator'),
+        actions: [
+          // Connection status indicator + settings button
+          IconButton(
+            onPressed: _showApiConfigDialog,
+            icon: Stack(
+              children: [
+                const Icon(Icons.settings),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            tooltip: 'Server Settings',
+          ),
+        ],
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
@@ -164,8 +317,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             label: 'Sign → Text',
           ),
           NavigationDestination(
-            icon: Icon(Icons.text_fields_outlined),
-            selectedIcon: Icon(Icons.text_fields),
+            icon: Icon(Icons.accessibility_new_outlined),
+            selectedIcon: Icon(Icons.accessibility_new),
             label: 'Text → Sign',
           ),
         ],

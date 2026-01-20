@@ -1,7 +1,7 @@
 # ===================
 # ISL Translator Project .gitignore
 # ===================
-
+extract/
 # Python
 __pycache__/
 *.py[cod]
@@ -48,6 +48,7 @@ Thumbs.db
 *.h5
 *.keras
 *.gguf
+*.pkl
 iteration_2_best.pt
 
 # Keep these model files for app

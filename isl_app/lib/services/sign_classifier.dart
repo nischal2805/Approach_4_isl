@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
+import '../constants.dart';
 
 /// Classifier for ISL signs using TFLite model
 /// Processes sequences of frames (30 frames = 1 sign) with proper aggregation
@@ -11,13 +13,12 @@ class SignClassifier {
   bool _isLoaded = false;
   int _numClasses = 0;
   
+  /// Check if model is loaded
+  bool get isLoaded => _isLoaded;
+  
   // Scaler parameters (loaded from scaler.json)
   List<double>? _scalerMean;
   List<double>? _scalerStd;
-  
-  // Feature dimensions
-  static const int LANDMARKS_PER_FRAME = 225; // 75 landmarks * 3 coords
-  static const int EXPECTED_FEATURES = 675;   // 225 * 3 (mean, max, std)
   
   Future<void> loadModel() async {
     try {
@@ -27,25 +28,25 @@ class SignClassifier {
       try {
         final gpuDelegate = GpuDelegate(options: GpuDelegateOptions());
         options.addDelegate(gpuDelegate);
-        print('SignClassifier: GPU delegate enabled');
+        if (kDebugMode) debugPrint('SignClassifier: GPU delegate enabled');
       } catch (e) {
-        print('SignClassifier: GPU not available, using CPU: $e');
+        if (kDebugMode) debugPrint('SignClassifier: GPU not available, using CPU: $e');
       }
       
-      _interpreter = await Interpreter.fromAsset('assets/model.tflite', options: options);
+      _interpreter = await Interpreter.fromAsset(AssetPaths.tfliteModel, options: options);
       
       // Get actual output shape from model
       final outputTensor = _interpreter!.getOutputTensor(0);
       _numClasses = outputTensor.shape[1]; // [1, num_classes]
-      print('SignClassifier: Model output classes: $_numClasses');
+      if (kDebugMode) debugPrint('SignClassifier: Model output classes: $_numClasses');
       
-      // Load labels
-      final labelData = await rootBundle.loadString('assets/labels.txt');
-      _labels = labelData.split('\n').where((l) => l.isNotEmpty).toList();
+      // Load labels - trim each label to handle Windows line endings (\r\n)
+      final labelData = await rootBundle.loadString(AssetPaths.labels);
+      _labels = labelData.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
       
       // Handle mismatch
       if (_labels.length != _numClasses) {
-        print('WARNING: Label count (${_labels.length}) != model classes ($_numClasses)');
+        if (kDebugMode) debugPrint('WARNING: Label count (${_labels.length}) != model classes ($_numClasses)');
         if (_labels.length > _numClasses) {
           _labels = _labels.sublist(0, _numClasses);
         }
@@ -53,25 +54,25 @@ class SignClassifier {
       
       // Load scaler parameters (REQUIRED for proper inference)
       try {
-        final scalerData = await rootBundle.loadString('assets/scaler.json');
+        final scalerData = await rootBundle.loadString(AssetPaths.scaler);
         final Map<String, dynamic> scaler = jsonDecode(scalerData);
         _scalerMean = List<double>.from(scaler['mean']);
         _scalerStd = List<double>.from(scaler['std']);
         
-        if (_scalerMean!.length != EXPECTED_FEATURES) {
-          throw Exception('Scaler dimension mismatch: expected $EXPECTED_FEATURES, got ${_scalerMean!.length}');
+        if (_scalerMean!.length != ModelConstants.totalFeatures) {
+          throw Exception('Scaler dimension mismatch: expected ${ModelConstants.totalFeatures}, got ${_scalerMean!.length}');
         }
         
-        print('SignClassifier: Scaler loaded (${_scalerMean!.length} features)');
+        if (kDebugMode) debugPrint('SignClassifier: Scaler loaded (${_scalerMean!.length} features)');
       } catch (e) {
-        print('WARNING: Scaler loading failed: $e');
+        if (kDebugMode) debugPrint('WARNING: Scaler loading failed: $e');
         // Continue without scaler - will use raw features
       }
       
       _isLoaded = true;
-      print('SignClassifier: Loaded with $_numClasses classes');
+      if (kDebugMode) debugPrint('SignClassifier: Loaded with $_numClasses classes');
     } catch (e) {
-      print('SignClassifier: Error loading model: $e');
+      if (kDebugMode) debugPrint('SignClassifier: Error loading model: $e');
       rethrow;
     }
   }
@@ -80,20 +81,26 @@ class SignClassifier {
   /// This is the proper way to use the model - matches training data
   /// 
   /// [frames] - List of landmark arrays, each with 225 values
+  /// [mirrorForFrontCamera] - If true, flip x-coordinates to match training data
   /// Returns prediction with label, confidence, and index
-  Future<Map<String, dynamic>?> classifySequence(List<List<double>> frames) async {
+  Future<Map<String, dynamic>?> classifySequence(List<List<double>> frames, {bool mirrorForFrontCamera = true}) async {
     if (!_isLoaded || frames.isEmpty) return null;
     
     // Validate frame dimensions
     for (int i = 0; i < frames.length; i++) {
-      if (frames[i].length != LANDMARKS_PER_FRAME) {
-        print('WARNING: Frame $i has ${frames[i].length} landmarks, expected $LANDMARKS_PER_FRAME');
+      if (frames[i].length != ModelConstants.landmarksPerFrame) {
+        if (kDebugMode) debugPrint('WARNING: Frame $i has ${frames[i].length} landmarks, expected ${ModelConstants.landmarksPerFrame}');
         return null;
       }
     }
     
+    // Mirror coordinates for front camera (training used rear camera videos)
+    var processedFrames = mirrorForFrontCamera 
+        ? frames.map((f) => _mirrorLandmarks(f)).toList()
+        : frames;
+    
     // Aggregate features from all frames: mean, max, std
-    var features = _aggregateFeatures(frames);
+    var features = _aggregateFeatures(processedFrames);
     
     // Apply StandardScaler transformation
     features = _scaleFeatures(features);
@@ -102,24 +109,75 @@ class SignClassifier {
     return _predict(features);
   }
   
+  /// Mirror landmarks for front camera to match training data format
+  /// Training videos used rear camera (person's left hand on right side of frame)
+  /// Front camera is mirrored (person's left hand on left side of frame)
+  /// 
+  /// This function:
+  /// 1. Flips x-coordinates: x = 1.0 - x
+  /// 2. Swaps left hand and right hand landmark positions
+  List<double> _mirrorLandmarks(List<double> landmarks) {
+    final result = List<double>.from(landmarks);
+    
+    // Constants
+    const poseCount = 33;
+    const handCount = 21;
+    const coordsPerLandmark = 3;
+    
+    // 1. Flip all x-coordinates (every 3rd value starting at 0)
+    for (int i = 0; i < result.length; i += coordsPerLandmark) {
+      result[i] = 1.0 - result[i];  // x = 1.0 - x
+    }
+    
+    // 2. Swap left hand (indices 99-161) with right hand (indices 162-224)
+    // Left hand starts at: poseCount * 3 = 99
+    // Right hand starts at: (poseCount + handCount) * 3 = 162
+    const leftHandStart = poseCount * coordsPerLandmark;  // 99
+    const rightHandStart = (poseCount + handCount) * coordsPerLandmark;  // 162
+    const handDataSize = handCount * coordsPerLandmark;  // 63
+    
+    for (int i = 0; i < handDataSize; i++) {
+      final temp = result[leftHandStart + i];
+      result[leftHandStart + i] = result[rightHandStart + i];
+      result[rightHandStart + i] = temp;
+    }
+    
+    return result;
+  }
+  
   /// Apply StandardScaler transformation: (x - mean) / std
   List<double> _scaleFeatures(List<double> features) {
     if (_scalerMean == null || _scalerStd == null) {
+      if (kDebugMode) debugPrint('WARNING: Scaler not loaded, using raw features!');
       return features;
     }
     
-    return List.generate(features.length, (i) {
+    final scaled = List.generate(features.length, (i) {
       double std = _scalerStd![i];
       if (std == 0) std = 1.0;
-      return (features[i] - _scalerMean![i]) / std;
+      double scaledVal = (features[i] - _scalerMean![i]) / std;
+      // Handle NaN/Inf after scaling
+      if (scaledVal.isNaN || scaledVal.isInfinite) return 0.0;
+      return scaledVal;
     });
+    
+    // Debug: Verify scaling was applied correctly (should be ~mean=0, std=1)
+    if (kDebugMode) {
+      final scaledMin = scaled.reduce((a, b) => a < b ? a : b);
+      final scaledMax = scaled.reduce((a, b) => a > b ? a : b);
+      final sum = scaled.fold<double>(0, (a, b) => a + b);
+      final scaledMean = sum / scaled.length;
+      debugPrint('SignClassifier: SCALED features - range: [${scaledMin.toStringAsFixed(2)}, ${scaledMax.toStringAsFixed(2)}], mean: ${scaledMean.toStringAsFixed(4)}');
+    }
+    
+    return scaled;
   }
   
   /// Aggregate frame landmarks into features: [mean, max, std]
   /// Input: [frames, 225] -> Output: [675]
   List<double> _aggregateFeatures(List<List<double>> frames) {
     final int numFrames = frames.length;
-    const int dim = LANDMARKS_PER_FRAME;
+    const int dim = ModelConstants.landmarksPerFrame;
     
     final mean = List<double>.filled(dim, 0.0);
     final maxVals = List<double>.filled(dim, double.negativeInfinity);
@@ -152,12 +210,33 @@ class SignClassifier {
       stdDev[j] = sqrt(stdDev[j] / numFrames);
     }
     
+    // Handle edge case: if max is still -infinity (no valid values), set to 0
+    for (int j = 0; j < dim; j++) {
+      if (maxVals[j] == double.negativeInfinity) {
+        maxVals[j] = 0.0;
+      }
+    }
+    
     // Concatenate: [mean (225), max (225), std (225)] = 675 features
-    return [...mean, ...maxVals, ...stdDev];
+    final aggregated = [...mean, ...maxVals, ...stdDev];
+    
+    // Handle NaN/Inf values (equivalent to np.nan_to_num)
+    return aggregated.map((v) {
+      if (v.isNaN || v.isInfinite) return 0.0;
+      return v;
+    }).toList();
   }
   
   /// Run TFLite inference with softmax
   Map<String, dynamic> _predict(List<double> features) {
+    // Debug: Check feature statistics (only in debug mode)
+    if (kDebugMode) {
+      final nonZeroCount = features.where((f) => f != 0.0).length;
+      final minVal = features.reduce((a, b) => a < b ? a : b);
+      final maxVal = features.reduce((a, b) => a > b ? a : b);
+      debugPrint('SignClassifier: Features - non-zero: $nonZeroCount/${ModelConstants.totalFeatures}, range: [${minVal.toStringAsFixed(2)}, ${maxVal.toStringAsFixed(2)}]');
+    }
+    
     // Input tensor: [1, 675]
     var input = [features];
     
@@ -168,6 +247,14 @@ class SignClassifier {
     
     // Get logits and apply softmax
     List<double> logits = List<double>.from(output[0]);
+    
+    // Debug: Check logit statistics (only in debug mode)
+    if (kDebugMode) {
+      final logitMin = logits.reduce((a, b) => a < b ? a : b);
+      final logitMax = logits.reduce((a, b) => a > b ? a : b);
+      debugPrint('SignClassifier: Logits range: [${logitMin.toStringAsFixed(2)}, ${logitMax.toStringAsFixed(2)}]');
+    }
+    
     List<double> probabilities = _softmax(logits);
     
     // Find best class

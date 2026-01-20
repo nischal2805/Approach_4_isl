@@ -180,16 +180,40 @@ def process_dataset_multicore(
     
     logger.info(f"Using {num_workers} worker processes")
     
-    # Find all videos
-    video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.MP4', '.AVI'}
+    # Find all videos - handles nested structure: Category/SignName/videos
+    video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.MP4', '.AVI', '.MOV'}
     videos_with_labels = []
     
-    for class_folder in dataset_path.iterdir():
-        if class_folder.is_dir() and not class_folder.name.startswith('.'):
-            class_name = class_folder.name
-            for video_file in class_folder.iterdir():
-                if video_file.suffix.lower() in video_extensions or video_file.suffix in video_extensions:
-                    videos_with_labels.append((str(video_file), class_name))
+    # Check if this is nested structure (Category/SignName) or flat (SignName)
+    for item in dataset_path.iterdir():
+        if item.is_dir() and not item.name.startswith('.'):
+            # Check if this folder contains videos directly
+            has_videos = any(f.suffix.lower() in {'.mp4', '.avi', '.mov', '.mkv', '.webm'} 
+                           for f in item.iterdir() if f.is_file())
+            
+            if has_videos:
+                # Flat structure: dataset/SignName/videos
+                class_name = item.name
+                # Extract clean label (remove number prefix like "48. Hello" -> "Hello")
+                if '. ' in class_name:
+                    class_name = class_name.split('. ', 1)[1]
+                
+                for video_file in item.iterdir():
+                    if video_file.is_file() and video_file.suffix.lower() in {'.mp4', '.avi', '.mov', '.mkv', '.webm'}:
+                        videos_with_labels.append((str(video_file), class_name))
+            else:
+                # Nested structure: dataset/Category/SignName/videos
+                category = item.name
+                for sign_folder in item.iterdir():
+                    if sign_folder.is_dir() and not sign_folder.name.startswith('.'):
+                        class_name = sign_folder.name
+                        # Extract clean label (remove number prefix like "48. Hello" -> "Hello")
+                        if '. ' in class_name:
+                            class_name = class_name.split('. ', 1)[1]
+                        
+                        for video_file in sign_folder.iterdir():
+                            if video_file.is_file() and video_file.suffix.lower() in {'.mp4', '.avi', '.mov', '.mkv', '.webm'}:
+                                videos_with_labels.append((str(video_file), class_name))
     
     logger.info(f"Found {len(videos_with_labels)} videos")
     

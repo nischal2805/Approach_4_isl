@@ -1,0 +1,98 @@
+{
+  "type": "letter",
+  "count": 23,
+  "signs": [
+    {
+      "label": "A",
+      "file": "a.json"
+    },
+    {
+      "label": "B",
+      "file": "b.json"
+    },
+    {
+      "label": "C",
+      "file": "c.json"
+    },
+    {
+      "label": "D",
+      "file": "d.json"
+    },
+    {
+      "label": "E",
+      "file": "e.json"
+    },
+    {
+      "label": "F",
+      "file": "f.json"
+    },
+    {
+      "label": "G",
+      "file": "g.json"
+    },
+    {
+      "label": "I",
+      "file": "i.json"
+    },
+    {
+      "label": "K",
+      "file": "k.json"
+    },
+    {
+      "label": "L",
+      "file": "l.json"
+    },
+    {
+      "label": "M",
+      "file": "m.json"
+    },
+    {
+      "label": "N",
+      "file": "n.json"
+    },
+    {
+      "label": "O",
+      "file": "o.json"
+    },
+    {
+      "label": "P",
+      "file": "p.json"
+    },
+    {
+      "label": "Q",
+      "file": "q.json"
+    },
+    {
+      "label": "R",
+      "file": "r.json"
+    },
+    {
+      "label": "S",
+      "file": "s.json"
+    },
+    {
+      "label": "T",
+      "file": "t.json"
+    },
+    {
+      "label": "U",
+      "file": "u.json"
+    },
+    {
+      "label": "W",
+      "file": "w.json"
+    },
+    {
+      "label": "X",
+      "file": "x.json"
+    },
+    {
+      "label": "Y",
+      "file": "y.json"
+    },
+    {
+      "label": "Z",
+      "file": "z.json"
+    }
+  ]
+}

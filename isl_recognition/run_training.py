@@ -142,9 +142,14 @@ def run_training(processed_dir: str, models_dir: str, results_dir: str):
         results_path = Path(results_dir)
         results_path.mkdir(parents=True, exist_ok=True)
         
+        # Get unique labels in test set to avoid mismatch
+        unique_test_labels = np.unique(y_test)
+        test_label_names = [label_encoder.classes_[i] for i in unique_test_labels]
+        
         report = classification_report(
             y_test, test_pred,
-            target_names=label_encoder.classes_,
+            labels=unique_test_labels,
+            target_names=test_label_names,
             output_dict=True
         )
         

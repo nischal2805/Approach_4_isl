@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'text_to_sign_service.dart';
 
@@ -19,6 +20,7 @@ class SignAnimator extends ChangeNotifier {
   
   SignFrame? _currentFrame;
   String _currentLabel = '';
+  String _currentSignType = 'word';
   int _totalSigns = 0;
 
   SignAnimator(this._textToSignService);
@@ -51,7 +53,7 @@ class SignAnimator extends ChangeNotifier {
       }
       
     } catch (e) {
-      print('Error loading signs: $e');
+      if (kDebugMode) debugPrint('Error loading signs: $e');
     }
     
     _isLoading = false;
@@ -138,6 +140,7 @@ class SignAnimator extends ChangeNotifier {
     // Update current frame
     _currentFrame = currentSign.frames[_currentFrameIndex];
     _currentLabel = currentSign.label;
+    _currentSignType = currentSign.type;
     notifyListeners();
     
     // Calculate frame duration
@@ -170,6 +173,7 @@ class SignAnimator extends ChangeNotifier {
   bool get isLoading => _isLoading;
   SignFrame? get currentFrame => _currentFrame;
   String get currentLabel => _currentLabel;
+  String get currentSignType => _currentSignType;
   double get playbackSpeed => _playbackSpeed;
   int get currentSignIndex => _currentSignIndex;
   int get totalSigns => _totalSigns;

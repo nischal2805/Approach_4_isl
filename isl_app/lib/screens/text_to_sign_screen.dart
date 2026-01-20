@@ -91,6 +91,7 @@ class _TextToSignScreenState extends State<TextToSignScreen> {
                   // Skeleton Avatar
                   SkeletonAvatar(
                     frame: _animator.currentFrame,
+                    signType: _animator.currentSignType,
                   ),
                   
                   // Current Sign Label

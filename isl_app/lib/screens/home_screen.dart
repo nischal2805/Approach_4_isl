@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../constants.dart';
 import '../services/landmark_service.dart';
 import '../services/sign_classifier.dart';
 import '../services/grammar_service.dart';
@@ -33,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<List<double>> _recordedFrames = [];
   Timer? _recordingTimer;
   int _recordingSeconds = 0;
-  static const int MAX_RECORDING_SECONDS = 10;
 
   // Results
   String _glossOutput = '';
@@ -49,25 +49,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _initialize() async {
-    print('HomeScreen: Starting initialization...');
-    await _requestPermissions();
-    print('HomeScreen: Permissions granted');
+    try {
+      if (kDebugMode) debugPrint('HomeScreen: Starting initialization...');
+      await _requestPermissions();
+      if (kDebugMode) debugPrint('HomeScreen: Permissions granted');
 
-    // Initialize native MediaPipe landmark extractor
-    final landmarkSuccess = await _landmarkService.initialize();
-    print('HomeScreen: LandmarkService initialized: $landmarkSuccess');
-    if (!landmarkSuccess && mounted) {
-      setState(() {
-        _errorMessage = 'Failed to initialize MediaPipe. Check model files.';
-      });
+      // Initialize native MediaPipe landmark extractor
+      final landmarkSuccess = await _landmarkService.initialize();
+      if (kDebugMode) debugPrint('HomeScreen: LandmarkService initialized: $landmarkSuccess');
+      if (!landmarkSuccess && mounted) {
+        setState(() {
+          _errorMessage = 'Failed to initialize MediaPipe. Check model files.';
+        });
+      }
+
+      await _signClassifier.loadModel();
+      if (kDebugMode) debugPrint('HomeScreen: SignClassifier loaded');
+      await _grammarService.initialize(useLLM: true);  // Enable LLM for grammar
+      if (kDebugMode) debugPrint('HomeScreen: GrammarService initialized');
+      await _initializeCamera();
+      if (kDebugMode) debugPrint('HomeScreen: Camera initialized');
+    } catch (e) {
+      if (kDebugMode) debugPrint('HomeScreen: Initialization error: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Initialization failed: $e';
+        });
+      }
     }
-
-    await _signClassifier.loadModel();
-    print('HomeScreen: SignClassifier loaded');
-    await _grammarService.initialize(useLLM: false);
-    print('HomeScreen: GrammarService initialized');
-    await _initializeCamera();
-    print('HomeScreen: Camera initialized');
   }
 
   Future<void> _requestPermissions() async {
@@ -82,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _cameraController?.dispose();
     _landmarkService.dispose();
     _signClassifier.close();
+    _grammarService.dispose();
     _recordingTimer?.cancel();
     super.dispose();
   }
@@ -129,9 +139,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         });
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Camera error: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Camera error: $e';
+        });
+      }
     }
   }
 
@@ -149,8 +161,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _errorMessage = null;
     });
 
-    // Start frame capture
-    await _cameraController!.startImageStream(_captureFrame);
+    // Start frame capture with error handling
+    try {
+      await _cameraController!.startImageStream(_captureFrame);
+    } catch (e) {
+      if (kDebugMode) debugPrint('HomeScreen: Error starting image stream: $e');
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _errorMessage = 'Failed to start camera: $e';
+        });
+      }
+      return;
+    }
 
     // Start timer
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -158,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _recordingSeconds++;
       });
 
-      if (_recordingSeconds >= MAX_RECORDING_SECONDS) {
+      if (_recordingSeconds >= ModelConstants.maxRecordingSeconds) {
         _stopRecording();
       }
     });
@@ -167,22 +190,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Capture frame landmarks during recording
   void _captureFrame(CameraImage image) async {
     if (!_isRecording) return;
-
     try {
       final landmarks = await _landmarkService.extractLandmarks(image);
       
-      // Debug logging
-      if (_recordedFrames.length % 10 == 0) {
-        print('Frame ${_recordedFrames.length}: landmarks=${landmarks.length}, non-zero=${landmarks.where((v) => v != 0).length}');
+      // Debug logging - show EVERY frame to diagnose issue
+      if (kDebugMode) {
+        if (_recordedFrames.length % 5 == 0 || landmarks.isEmpty) {
+          debugPrint('FRAME ${_recordedFrames.length}: got ${landmarks.length} landmarks, non-zero=${landmarks.where((v) => v != 0).length}');
+        }
       }
       
-      if (landmarks.isNotEmpty && landmarks.length == 225) {
+      if (landmarks.isNotEmpty && landmarks.length == LandmarkConstants.expectedLandmarkCount) {
         _recordedFrames.add(landmarks);
-      } else if (landmarks.isEmpty) {
-        print('WARNING: Empty landmarks returned');
+      } else if (kDebugMode) {
+        debugPrint('SKIPPED FRAME: landmarks.length=${landmarks.length}, expected=${LandmarkConstants.expectedLandmarkCount}');
       }
     } catch (e) {
-      print('Frame capture error: $e');
+      if (kDebugMode) {
+        debugPrint('Frame capture error: $e');
+      }
     }
   }
 
@@ -208,7 +234,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Process recorded frames to detect signs
   Future<void> _processRecordedVideo() async {
-    print('DEBUG: Processing video with ${_recordedFrames.length} frames');
+    if (kDebugMode) {
+      debugPrint('DEBUG: Processing video with ${_recordedFrames.length} frames');
+    }
     
     if (_recordedFrames.isEmpty) {
       setState(() {
@@ -217,7 +245,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
 
-    print('Processing ${_recordedFrames.length} frames...');
+    if (kDebugMode) {
+      debugPrint('Processing ${_recordedFrames.length} frames...');
+    }
 
     try {
       // Segment the recording into sign windows
@@ -241,14 +271,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
 
       // Grammar correction
+      if (kDebugMode) {
+        debugPrint('DEBUG: Calling grammar service with gloss: $gloss');
+      }
       final translated = await _grammarService.correctGrammar(gloss);
+      if (kDebugMode) {
+        debugPrint('DEBUG: Grammar service returned: $translated');
+      }
 
       setState(() {
-        _translatedSentence = translated;
+        _translatedSentence = translated.isNotEmpty ? translated : gloss;
       });
 
-      print('Gloss: $gloss');
-      print('Translation: $translated');
+      if (kDebugMode) {
+        debugPrint('Gloss: $gloss');
+        debugPrint('Translation: $translated');
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Processing error: $e';
@@ -257,49 +295,82 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// Detect signs using sliding window over recorded frames
+  /// Uses NO_SIGN as word delimiter (100% accurate in training)
+  /// Flow: Sign → NO_SIGN (pause/delimiter) → Sign → Grammar → Sentence
   Future<List<Map<String, dynamic>>> _detectSignsInRecording() async {
     final List<Map<String, dynamic>> detectedSigns = [];
     
-    const int windowSize = 30; // 30 frames = 1 sign (matches training)
-    const int stepSize = 15;   // 50% overlap for better detection
+    const int windowSize = RecordingConstants.signWindowSize;
+    const int stepSize = RecordingConstants.slideStep;
+    const double confidenceThreshold = ModelConstants.confidenceThreshold;
     
-    print('DEBUG: Detecting signs in ${_recordedFrames.length} frames (window=$windowSize, step=$stepSize)');
+    if (kDebugMode) {
+      debugPrint('DEBUG: Detecting signs in ${_recordedFrames.length} frames (window=$windowSize, step=$stepSize)');
+    }
     
     if (_recordedFrames.length < windowSize) {
-      print('DEBUG: Not enough frames, processing ${_recordedFrames.length} frames directly');
+      if (kDebugMode) {
+        debugPrint('DEBUG: Not enough frames, processing ${_recordedFrames.length} frames directly');
+      }
       // Not enough frames, process what we have
       final result = await _signClassifier.classifySequence(_recordedFrames);
-      print('DEBUG: Result: $result');
-      if (result != null && result['label'] != 'NO_SIGN' && result['confidence'] > 0.2) {
+      final conf = (result?['confidence'] ?? 0.0) as double;
+      if (kDebugMode) {
+        debugPrint('DEBUG: Result: label=${result?['label']}, conf=${(conf * 100).toStringAsFixed(1)}%');
+      }
+      if (result != null && 
+          result['label'] != 'NO_SIGN' && 
+          conf >= confidenceThreshold) {
         detectedSigns.add(result);
       }
       return detectedSigns;
     }
 
-    // Sliding window detection
+    // Sliding window detection with NO_SIGN as word delimiter
+    // NO_SIGN marks boundaries between different signs
     String? lastSign;
+    bool wasNoSign = false; // Track if last detection was NO_SIGN
     int windowCount = 0;
+    
     for (int start = 0; start + windowSize <= _recordedFrames.length; start += stepSize) {
       final window = _recordedFrames.sublist(start, start + windowSize);
       windowCount++;
       
       final result = await _signClassifier.classifySequence(window);
-      print('DEBUG: Window $windowCount (frames $start-${start+windowSize}): ${result?['label']} @ ${((result?['confidence'] ?? 0) * 100).toStringAsFixed(1)}%');
+      final conf = (result?['confidence'] ?? 0.0) as double;
+      final label = result?['label'] as String? ?? 'NO_SIGN';
       
-      if (result != null && 
-          result['label'] != 'NO_SIGN' && 
-          result['confidence'] > 0.2) {
-        
-        // Avoid consecutive duplicates
-        if (result['label'] != lastSign) {
+      if (kDebugMode) {
+        debugPrint('DEBUG: Window $windowCount (frames $start-${start+windowSize}): $label @ ${(conf * 100).toStringAsFixed(1)}%');
+      }
+      
+      if (result == null) continue;
+      
+      if (label == 'NO_SIGN') {
+        // NO_SIGN acts as a delimiter/word boundary
+        // When we see NO_SIGN, the next different sign is a new word
+        wasNoSign = true;
+        lastSign = null; // Reset so same sign can be detected again after pause
+        if (kDebugMode) {
+          debugPrint('DEBUG: NO_SIGN detected - word boundary');
+        }
+      } else if (conf >= confidenceThreshold) {
+        // Valid sign detected with sufficient confidence
+        // Add if: it's different from last sign, OR we had a NO_SIGN pause (same sign repeated)
+        if (label != lastSign || wasNoSign) {
           detectedSigns.add(result);
-          lastSign = result['label'];
-          print('DEBUG: Added sign: ${result['label']}');
+          lastSign = label;
+          wasNoSign = false;
+          if (kDebugMode) {
+            debugPrint('DEBUG: Added sign: $label (conf: ${(conf * 100).toStringAsFixed(1)}%)');
+          }
         }
       }
     }
     
-    print('DEBUG: Total detected signs: ${detectedSigns.length}');
+    if (kDebugMode) {
+      debugPrint('DEBUG: Total detected signs: ${detectedSigns.length}');
+    }
 
     return detectedSigns;
   }
@@ -402,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              'Recording $_recordingSeconds/$MAX_RECORDING_SECONDS s',
+                              'Recording $_recordingSeconds/${RecordingConstants.maxDurationSeconds} s',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -455,15 +526,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
 
-          // Record Button
+          // Record Button - Tap to Start/Stop
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20),
             color: const Color(0xFF1A1A2E),
             child: Center(
               child: GestureDetector(
-                onTapDown: (_) => _startRecording(),
-                onTapUp: (_) => _stopRecording(),
-                onTapCancel: () => _stopRecording(),
+                onTap: () {
+                  if (_isRecording) {
+                    _stopRecording();
+                  } else {
+                    _startRecording();
+                  }
+                },
                 child: Container(
                   width: 80,
                   height: 80,
